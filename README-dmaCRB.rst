@@ -48,9 +48,11 @@ in parentheses. ::
     unpackVals(003f8021): array('b', [1, 0, 0, 0, 1, 0, 0, 0, 63, 1, 0, 0, 0, 0, 0, 0, 0])
     unpackVals(003f8025): array('b', [1, 0, 1, 0, 1, 0, 0, 0, 63, 1, 0, 0, 0, 0, 0, 0, 0])
 
-The last section of `testDCRB` output shows a title printed by
+The last section of `testDCRB` output shows a two-line title printed by
 `dmaCtrlRegBits.printHeadLines()`, followed by output from five calls
-to `dmaCtrlRegBits.printCodes(p)`. ::
+to `dmaCtrlRegBits.printCodes(p)`.  The code that prints field names
+breaks them arbitrarily into two 4-character pieces, discarding any
+characters beyond the first 8. ::
 
               enab high size inc_ inc_ ring ring chai treq irq_ bswa snif busy rese writ read ahb_
                 le _pri      read writ _siz _sel n_to _sel quie    p f_en      rved e_er _err  err
