@@ -9,7 +9,8 @@ PIO, DMA, Timer tests / demos
 
 This repo contains several small test or demonstration programs, for
 PIO, DMA, Timer devices on an RP2040-based system, as typified by a
-Raspberry Pi Pico.
+Raspberry Pi Pico.  (Problem: links to other README files aren't
+working - will fix later - )
 
 ------------------
 
