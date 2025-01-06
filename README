@@ -9,36 +9,39 @@ PIO, DMA, Timer tests / demos
 
 This repo contains several small test or demonstration programs, for
 PIO, DMA, Timer devices on an RP2040-based system, as typified by a
-Raspberry Pi Pico.  (tbd: fix links to other README files)
+Raspberry Pi Pico.
 
 ------------------
 
-🔵 See `README-lPIODMAt` for description of
-`littlePIO-DMAtest1`, a demonstration of putting RP2040 PIO State
-Machine output into memory, via DMA transfer.  That `README` describes
-a PIO-DMA test program and shows example output.
+🔵 See `README-lPIODMAt <README-lPIODMAt>`_ for description of
+`littlePIO-DMAtest1 <littlePIO-DMAtest1.py>`_, a demonstration of
+putting RP2040 PIO State Machine output into memory, via DMA transfer.
+That `README` describes a PIO-DMA test program and shows example
+output.
 
 ------------------
 
-🔵 See `README-readTimerReg` for description of `readTimerReg.py`,
-a demonstration of directly reading an RP2040's main timer register
-several ways.  That `README` describes the test program and shows
-example output.  The program tests at multiple system frequencies.
+🔵 See `README-readTimerReg <README-readTimerReg>`_ for description of
+`readTimerReg.py <readTimerReg.py>`_, a demonstration of directly
+reading an RP2040's main timer register several ways.  That `README`
+describes the test program and shows example output.  The program
+tests at multiple system frequencies.
 
 ------------------
 
-🔵 See `README-sDMAregs` for description of `showDMAregisters.py`,
-a demonstration of looking at RP2040 DMA register contents via a
-`memoryview` object supplied by `DMA.registers`.  That `README`
-describes the test program and shows example output for three DMA
-channels it sets up.
+🔵 See `README-sDMAregs <README-sDMAregs>`_ for description of
+`showDMAregisters.py <showDMAregisters.py>`_, a demonstration of
+looking at RP2040 DMA register contents via a `memoryview` object
+supplied by `DMA.registers`.  That `README` describes the test program
+and shows example output for three DMA channels it sets up.
 
 ------------------
 
-🔵 See `README-dmaCRB` for description of `dmaCtrlRegBits.py` and
-`testDCRB.py`, a demonstration of decoding RP2040 DMA control register
-contents.  That `README` lists helper routines that can be imported
-from `dmaCtrlRegBits.py` and shows output from test program
+🔵 See `README-dmaCRB <README-dmaCRB>`_ for description of
+`dmaCtrlRegBits.py <dmaCtrlRegBits.py>`_ and `testDCRB.py
+<testDCRB.py>`_, a demonstration of decoding RP2040 DMA control
+register contents.  That `README` lists helper routines that can be
+imported from `dmaCtrlRegBits.py` and shows output from test program
 `testDCRB.py`.
 
 ------------------
