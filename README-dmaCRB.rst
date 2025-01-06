@@ -2,17 +2,19 @@
 ..  To view this in html in browser, use `restview fn` (fn=this file)
 ..  Browser page updates when changed version is stored.
 
+README-dmaCRB.rst
+
 ========================================
 dmaCtrlRegBits.py & testDCRB.py
 ========================================
 
 DMA control registers like `CHx_CTRL_TRIG, CHx_AL1_CTRL,
 CHx_AL2_CTRL,` and `CHx_AL3_CTRL` on an RP2040 system (eg, a Raspberry
-Pi Pico or Zero) are 32-bit registers that contain 16 fields
-controlling how a DMA channel behaves.  Table 124 in the RP2040
-Datasheet shows field names and widths.  One could manually decode
-control register values, but using a program as described here can
-save time and effort when decoding such values.
+Pi Pico) are 32-bit registers that contain 16 fields controlling how a
+DMA channel behaves.  Table 124 in the RP2040 Datasheet shows field
+names and widths.  One could manually decode control register values,
+but using a program as described here can save time and effort when
+decoding such values.
 
 `dmaCtrlRegBits.py` contains four small functions to assist in
 decoding or printing values of bit fields from a packed DMA control
