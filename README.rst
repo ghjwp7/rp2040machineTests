@@ -13,7 +13,7 @@ Raspberry Pi Pico.
 
 ------------------
 
-🔵 See [README-lPIODMAt.rst](./README-lPIODMAt.rst) for description of
+🔵 See [README-lPIODMAt.rst](README-lPIODMAt.rst) for description of
 `littlePIO-DMAtest1`, a demonstration of putting RP2040 PIO State
 Machine output into memory, via DMA transfer.  That `README` describes
 a PIO-DMA test program and shows example output.
