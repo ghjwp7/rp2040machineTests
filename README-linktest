@@ -2,9 +2,9 @@
 .. - jiw - 6 Jan 2025
 ..  To view this as html in browser, use `restview fn &`
 
-🔵 See `README-lPIODMAt<README-lPIODMAt>`_ for description of
-`littlePIO-DMAtest1<littlePIO-DMAtest1.py>`_, a demonstration of
+🔵 See `README-lPIODMAt <README-lPIODMAt>`_ for description of
+`littlePIO-DMAtest1 <littlePIO-DMAtest1.py>`_, a demonstration of
 putting RP2040 PIO State Machine output into memory
 
-🔵 See `README-readTimer<RegREADME-readTimerReg>`_ for description of
-`readTimerReg.py<readTimerReg.py>`_, a demonstration of stuff
+🔵 See `README-readTimer <RegREADME-readTimerReg>`_ for description of
+`readTimerReg.py <readTimerReg.py>`_, a demonstration of stuff
