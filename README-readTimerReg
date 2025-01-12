@@ -6,19 +6,24 @@
 readTimerReg.py
 ========================================
 
-**Aim:**  On an RP2040, `readTimerReg.py` demonstrates directly
-accessing the RP2040's main timer register.  (RP2040 = processor in
-Raspberry Pi Pico and many other boards.)
+**Aim:** On an RP2040, `readTimerReg.py <readTimerReg.py>`_
+demonstrates directly accessing the RP2040's main timer register.
+(RP2040 = processor in Raspberry Pi Pico and many other boards.)
 
-Four times each for each of three modes, `readTimerReg` takes 9
-successive timer readings, subtracting a `t0` value from each.  After
-taking all its readings, `readTimerReg` prints them out (grouped by
-reading mode) and prints reading-to-reading values as well.
-
-The three modes tested are: 🔸calling `ticks_us()`, as imported from
-`utime`; 🔸accessing the TIMELR register at 12+TIMER_BASE =
-12+0x40054000 via `mem32[]`; and 🔸accessing it via a `ptr32()`
+Tests are run in several modes: 🔸calling `ticks_us()`, as imported
+from `utime`; 🔸accessing the TIMELR register at 12+TIMER_BASE =
+12+0x40054000 via `mem32[]`; 🔸🔸each of those again, but in
+native-code compilations; and 🔸accessing the register via a `ptr32()`
 reference within a viper-translated function.
+
+Each test for a mode consists of taking nine timer readings in a row,
+subtracting a `t0` value from each on the fly.  Each mode is tested
+several times, with modes taken in different orders in successive
+tests, to help detect if test order matters.
+
+After taking all of its readings and storing them in arrays,
+`readTimerReg` prints out results, grouped by reading mode, hence four
+lines per mode.  It prints reading-to-reading values as well.
 
 Unsurprisingly, viper-compiled code is by far the fastest.  On the
 other hand, code using mem32[] is rather slow.

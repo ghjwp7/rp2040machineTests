@@ -1,4 +1,4 @@
-# -*- mode: python;  coding: utf-8 -*-  jiw - 3 Jan 2025
+# -*- mode: python;  coding: utf-8 -*-  jiw - 3 Jan & 7 Jan 2025
 #  RP2040: print some timer registers
 import micropython
 from array import array
@@ -13,6 +13,24 @@ def mtimes():
     return a
 
 def ptimes():
+    TIMER_BASE = 0x40054000  # 4.6.5. List of Registers in Datasheet
+    TIMELR = TIMER_BASE+12
+    a = array('I', [0]*9)
+    t0 = mem32[TIMELR]
+    for j in range(9):
+        a[j] = mem32[TIMELR]-t0
+    return a
+
+@micropython.native
+def nmtimes():
+    a = array('I', [0]*9)
+    t0 = ticks_us()
+    for j in range(9):
+        a[j] = ticks_us()-t0
+    return a
+
+@micropython.native
+def nptimes():
     TIMER_BASE = 0x40054000  # 4.6.5. List of Registers in Datasheet
     TIMELR = TIMER_BASE+12
     a = array('I', [0]*9)
@@ -37,13 +55,15 @@ def runTest(f):
                 freq(f) # Set system frequency
         except: print(f'Exception when setting {f} Hz system frequency')
 
-    l, p, u = mtimes(), ptimes(), vtimes()
-    q, m, v = ptimes(), mtimes(), vtimes()
-    r, w, n = ptimes(), vtimes(), mtimes()
-    x, o, s = vtimes(), mtimes(), ptimes()
-    print(f'\nSystem frequency = {freq()} Hz')
-    for a, l in zip((l,m,n,o, p,q,r,s, u,v,w,x),
-                    ('l','m','n','o', '\np','q','r','s', '\nu','v','w','x')):
+    l, p, L, P, u = mtimes(),  ptimes(),  nmtimes(), nptimes(), vtimes()
+    Q, q, m, v, M = nptimes(), ptimes(),  mtimes(),  vtimes(),  nmtimes()
+    r, R, w, N, n = ptimes(),  nptimes(), vtimes(),  nmtimes(), mtimes()
+    O, x, o, s, S = nmtimes(), vtimes(),  mtimes(),  ptimes(),  nptimes()
+    print(f'\nSystem frequency = {freq()} Hz', end='')
+    for a, l in zip((p,q,r,s, P,Q,R,S, l,m,n,o, L,M,N,O, u,v,w,x),
+                    ('\np','q','r','s', '\nP','Q','R','S',
+                     '\nl','m','n','o', '\nL','M','N','O', 
+                     '\nu','v','w','x')):
         print(l, end='')
         for t in a:  print(f'{t:5}', end='')
         print(f'  {l[-1]} ', end='');  pt=0
