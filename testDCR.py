@@ -1,7 +1,7 @@
 #!/bin/env python
 # -*- mode: python;  coding: utf-8 -*-  jiw - 5 Jan 2025
 #  RP2040 DMA testing: demo that dmaCtrlRegBits.py functions work ok atm
-import dmaCtrlRegBits as cb
+import DMA_CtrlReg as cb
 
 def main():
     # test that  fieldList()  returns tuple of (name, nbits) pairs

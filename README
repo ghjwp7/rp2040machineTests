@@ -13,11 +13,10 @@ Raspberry Pi Pico.
 
 ------------------
 
-🔵 See `README-lPIODMAt <README-lPIODMAt>`_ for description of
-`littlePIO-DMAtest1 <littlePIO-DMAtest1.py>`_, a demonstration of
-putting RP2040 PIO State Machine output into memory, via DMA transfer.
-That `README` describes a PIO-DMA test program and shows example
-output.
+🔵 See `README-PIO-DMAtest <README-PIO-DMAtest>`_ for description of
+`PIO-DMAtest1 <PIO-DMAtest1.py>`_, a demonstration of putting RP2040
+PIO State Machine output into memory, via DMA transfer.  That `README`
+describes a PIO-DMA test program and shows example output.
 
 ------------------
 
@@ -37,12 +36,11 @@ and shows example output for three DMA channels it sets up.
 
 ------------------
 
-🔵 See `README-dmaCRB <README-dmaCRB>`_ for description of
-`dmaCtrlRegBits.py <dmaCtrlRegBits.py>`_ and `testDCRB.py
-<testDCRB.py>`_, a demonstration of decoding RP2040 DMA control
-register contents.  That `README` lists helper routines that can be
-imported from `dmaCtrlRegBits.py` and shows output from test program
-`testDCRB.py`.
+🔵 See `README-DMA_CtrlReg <README-DMA_CtrlReg>`_ for description of
+`DMA_CtrlReg.py <DMA_CtrlReg.py>`_ and `testDCR.py <testDCR.py>`_, a
+demonstration of decoding RP2040 DMA control register contents.  That
+`README` lists helper routines that can be imported from
+`DMA_CtrlReg` and shows output from test program `testDCR.py`.
 
 ------------------
 
