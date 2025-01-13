@@ -21,18 +21,19 @@ describes a PIO-DMA test program and shows example output.
 ------------------
 
 🔵 See `README-readTimerReg <README-readTimerReg>`_ for description of
-`readTimerReg.py <readTimerReg.py>`_, a demonstration of directly
-reading an RP2040's main timer register several ways.  That `README`
-describes the test program and shows example output.  The program
-tests at multiple system frequencies.
+`readTimerReg3 <readTimerReg3.py>`_, a micropython program that
+reads an RP2040's main timer register several ways.  That `README`
+describes the test program and shows example output.  The program can
+test at multiple system frequencies.
 
 ------------------
 
-🔵 See `README-sDMAregs <README-sDMAregs>`_ for description of
-`showDMAregisters.py <showDMAregisters.py>`_, a demonstration of
-looking at RP2040 DMA register contents via a `memoryview` object
-supplied by `DMA.registers`.  That `README` describes the test program
-and shows example output for three DMA channels it sets up.
+🔵 See `README-showDMAregisters <README-showDMAregisters>`_ for
+description of `showDMAregisters <showDMAregisters.py>`_, a
+micropython program that looks at RP2040 DMA register contents via a
+`memoryview` object supplied by `DMA.registers`.  That `README`
+describes the test program and shows example output for three DMA
+channels it sets up.
 
 ------------------
 
