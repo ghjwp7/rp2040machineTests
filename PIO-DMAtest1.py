@@ -36,8 +36,10 @@ def main():
     nReadings = 200;  smFreq = 2000;  sm_number = 0;  PIOnum = 0
     smSteps = 6                 # sm steps per sm pass
     cyFreq = smFreq/smSteps;  cyPeriod = 1e6*smSteps/smFreq
+    smPeriod =  1e6/smFreq
     print(f'System frequency   = {freq():9}')
-    print(f'SM  step frequency = {smFreq:9}')
+    print(f'SM  step frequency = {smFreq:9} Hz = {smPeriod:2.0f} us')
+    print(f'SM steps per cycle = {smSteps:9}')
     print(f'SM cycle frequency = {cyFreq:9.2f} Hz = {cyPeriod:2.0f} us')
     nomTTime = cyPeriod*nReadings
     smx = StateMachine(sm_number, pioProg0, freq=smFreq)

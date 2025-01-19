@@ -1,4 +1,5 @@
 calibratePulse0.py
-littleDMAtest1.py
 rp2_dma.py*
 __pycache__
+*DMAtest0.py
+memoryAlign*

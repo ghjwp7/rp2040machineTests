@@ -3,10 +3,10 @@
 ..  Browser page will update whenever a changed version is stored.
 
 ========================================
-littlePIO-DMAtest1
+PIO-DMAtest1
 ========================================
 
-**Aim:** `littlePIO-DMAtest1` is a test or demo of putting RP2040 PIO
+**Aim:** `PIO-DMAtest1` is a test or demo of putting RP2040 PIO
 State Machine output into memory, via DMA transfer.  It acts as follows:
 
 • Creates a state machine `smx` to increment a counter by 3 between stores
