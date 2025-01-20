@@ -1,5 +1,5 @@
-.. -*- mode: rst -*-  #  RM for littlePIO-DMAtest1.py - jiw - 1 Jan 2025
-..  To view this in html in browser, use `restview README-lPDt.rst`
+.. -*- mode: rst -*-  #  RM for littlePIO-DMAtest1.py - jiw - 19 Jan 2025
+..  To view this in html in browser, use `restview <fn>`
 ..  Browser page will update whenever a changed version is stored.
 
 ========================================
@@ -17,18 +17,27 @@ chaining.  It acts as follows:
 Note, `smx` has its two 4-word fifos Rx and Tx combined into one
 8-word Rx fifo.
 
-Several sets of example outputs are shown below, taken with state
-machine `smx` producing words at for example 20, 25, and 30 KHz.
-After each full-buffer interrupt and callback, the main thread prints
-out action times, buffer min and max, and sequence-check results.
+Example output appears below, taken with state machine `smx` producing
+words at 20, 25, 30, 35, and 40 KHz.  Output for each test case begins
+with system frequency, followed by state-machine data -- step
+frequency, steps per cycle, and cycle frequency.  For example, at 20
+KHz SM cycle::
 
-The first part of output for each test case is like the output from
-`PIO-DMAtest1`.  We have system frequency = 125000000, followed by
-state-machine data -- step frequency, steps per cycle, and cycle
-frequency.  After some headings, 15 lines of data appear.  Each data
-line shows a numbered entry with the time of a DMA interrupt, how long
-until callback and processing, and buffer analysis -- min, max,
-sequence check.  For example::
+    System frequency   = 125000000
+    SM  step frequency =    120000 Hz =  8 us
+    SM steps per cycle =         6
+    SM cycle frequency =  20000.00 Hz = 50 us
+    Data collects during next 48000 us, w/progress notes
+
+The main thread prints headings, and then, after each full-buffer
+interrupt and callback, prints out action times, buffer min and max,
+and sequence-check results, typically in 15 lines of data -- three DMA
+channels each making five buffer fills. Each buffer fill overwrites a
+buffer.
+
+Each data line shows a numbered entry with the time of a DMA
+interrupt, how long before callback and processing started, and buffer
+analysis -- min, max, sequence check.  For example::
 
     Entry    Interrupt   Microseconds to    First    Range     OK
      #  DMA#  time, us  Callback & Report   value   min-max   steps
@@ -36,37 +45,229 @@ sequence check.  For example::
 
 This shows the third entry for DMA channel 0.  The third interrupt for
 that channel occurred about 153779 microseconds after DMA channels
-were created.  About 25 us after the interrupt, whose handler
-scheduled a callback, the callback routine started.  That routine
-stored interrupt and callback times, and increased the in-records
-index, `rri`.  About 200 us after the interrupt, the main thread's
-busy loop saw `rro<rri` and wrote the data line shown, to say that DMA
-channel 0's buffer's word 0 holds 1155; that min and max are 1155 and
-1344; and that 63 of the buffer's 64 entries are 3 more than the
-previous entry, all as expected for the third buffer fill for channel
-0 of 3 channels.  (Each buffer fill overwrites a buffer.)  Note, the
-previous buffer -- fill 2 for DMA 2 -- ended with 1152, which is
-3*3*64*2 = step*chans*bufwords*fills.
+were created.  About 25 us after the interrupt, when callback got
+scheduled, the callback routine started.  That routine stored
+interrupt and callback times, and increased the in-records index,
+`rri`.  About 200 us after the interrupt, the main thread's busy loop
+saw `rro<rri` and wrote the data line shown, to say that DMA channel
+0's buffer's word 0 holds 1155; that min and max are 1155 and 1344;
+and that 63 of the buffer's 64 entries are 3 more than the previous
+entry, all as expected for the third buffer fill for channel 0 of 3
+channels.  Note, the previous buffer -- fill 2 for DMA 2 -- ended with
+1152, which is 3*3*64*2 = step*chans*bufwords*fills.
 
 ---------------------------
 
+This section contains output from runs with SM cycle frequency = 20,
+25, 30, 35, and 40 KHz.  Output from the last is incomplete; for more
+on that, see discussion in 40 KHz section.
+
+Runs at 20 and 25 KHz
+-------------------------
+::
+
+    System frequency   = 125000000
+    SM  step frequency =    120000 Hz =  8 us
+    SM steps per cycle =         6
+    SM cycle frequency =  20000.00 Hz = 50 us
+    Data collects during next 48000 us, w/progress notes
+    
+    Entry    Interrupt   Microseconds to    First    Range     OK
+     #  DMA#  time, us  Callback & Report   value   min-max   steps
+     1   0       7735      70       241         3     3-192    63
+     1   1      10909      40       200       195   195-384    63
+     1   2      14106      46       154       387   387-576    63
+     2   0      17305      59       233       579   579-768    63
+     2   1      20503      53       164       771   771-960    63
+     2   2      23706      69       208       963   963-1152   63
+     3   0      26900      32       170      1155  1155-1344   63
+     3   1      30102      47       226      1347  1347-1536   63
+     3   2      33303      37       142      1539  1539-1728   63
+     4   0      36501      40       273      1731  1731-1920   63
+     4   1      39702      42       204      1923  1923-2112   63
+     4   2      42902      30       137      2115  2115-2304   63
+     5   0      46105      57       235      2307  2307-2496   63
+     5   1      49304      38       147      2499  2499-2688   63
+     5   2      52503      56       231      2691  2691-2880   63
+    Turned off SM and DMAs at t+148099 us, vs 48000 nominal
+    
+    >>> %Run -c $EDITOR_CONTENT
+    System frequency   = 125000000
+    SM  step frequency =    150000 Hz =  7 us
+    SM steps per cycle =         6
+    SM cycle frequency =  25000.00 Hz = 40 us
+    Data collects during next 38400 us, w/progress notes
+    
+    Entry    Interrupt   Microseconds to    First    Range     OK
+     #  DMA#  time, us  Callback & Report   value   min-max   steps
+     1   0       7140      69       243         3     3-192    63
+     1   1       9695     208       356       195   195-384    63
+     1   2      12234      64       298       387   387-576    63
+     2   0      14792      62       297       579   579-768    63
+     2   1      17351      43       214       771   771-960    63
+     2   2      19908      28       140       963   963-1152   63
+     3   0      22468      40       219      1155  1155-1344   63
+     3   1      25031      35       246      1347  1347-1536   63
+     3   2      27593      29       141      1539  1539-1728   63
+     4   0      30151      30       175      1731  1731-1920   63
+     4   1      32710      34       214      1923  1923-2112   63
+     4   2      35269      53       273      2115  2115-2304   63
+     5   0      37830      51       168      2307  2307-2496   63
+     5   1      40390      29       245      2499  2499-2688   63
+     5   2      42950      38       143      2691  2691-2880   63
+    Turned off SM and DMAs at t+138416 us, vs 38400 nominal
+
+In the 20 and 25 KHz runs, all results are nominal, with one caveat --
+times of interrupts are about 4500 us more than I expected.  At 20
+KHz, buffer fill should take 3200 us, so interrupt times should be
+3200, 6400, 9600, ... but instead are 4500-4600 more than that.  At 25
+KHz , buffer fill should take 2560 us, so interrupt times should be
+2560, 5120, 7680, ... but again are 4500-4600 more.  Note, 10000 us
+'postti' and 100000 us extra for completion are accounted for; they
+don't explain the 4500 us issue.
+
+That aside, we see that callbacks occur at orderly times, fairly soon
+after being scheduled by the interrupt handler, with delays in these
+examples ranging mostly from 28 to 70 us, plus one outlier at 208 us.
+Delays from interrupt to main-thread processing range from 140 to 356
+us.  Every buffer contained its expected data, as shown by orderly
+ascent of numbers in the "First value" and "Range min-max" columns,
+and exactly 63 OK steps for every buffer.
+
+
+Runs at 30 and 35 KHz
+---------------------------
+
+::
+
+    System frequency   = 125000000
+    SM  step frequency =    180000 Hz =  6 us
+    SM steps per cycle =         6
+    SM cycle frequency =  30000.00 Hz = 33 us
+    Data collects during next 31999 us, w/progress notes
+    
+    Entry    Interrupt   Microseconds to    First    Range     OK
+     #  DMA#  time, us  Callback & Report   value   min-max   steps
+     1   0       6662      48       258         3     3-192    63
+     1   1       8776     649       813       195   195-384    63
+     1   2      10903     820       986       387   387-576    63
+     2   0      13031     916      1168       579   579-768    63
+     2   1      15178    1171      1314       771   771-960    63
+     2   2      17301    1276      1425       963   963-1152   63
+     3   0      19449    1354      1586      1155  1155-1344   63
+     3   1      21575    1594      1733      1347  1347-1536   63
+     3   2      23695    1694      1864      1539  1539-1728   63
+     4   0      25829    1782      2017      1731  1731-1920   63
+     4   1      27961    1997      2198      1923  1923-2112   63
+     4   2      30090    2089      2291      2115  2115-2304   63
+     5   0      32224    2230      2520      2307  2307-2496   63
+     5   1      34366     264      2705      2499  2499-2688   63
+     5   2      36505     420      2833      2691  2691-2880   63
+    Turned off SM and DMAs at t+132053 us, vs 31999 nominal
+
+In the 30 KHz run (above) all results are nominal, but obviously the
+CPU is not quite keeping up with the data rate -- delay between
+interrupt and associated callback grows steadily, until DMA 0 shuts
+off, after which it drops.  Sequence results all are nominal and
+correct. That is not the case in the 35 KHz run; sequence results are
+not all correct::
+
+    System frequency   = 125000000
+    SM  step frequency =    210000 Hz =  5 us
+    SM steps per cycle =         6
+    SM cycle frequency =  35000.00 Hz = 29 us
+    Data collects during next 27428 us, w/progress notes
+    
+    Entry    Interrupt   Microseconds to    First    Range     OK
+     #  DMA#  time, us  Callback & Report   value   min-max   steps
+     1   0       6532      56       190         3     3-192    63
+     1   1       8349     908      1071       195   195-384    63
+     1   2      10163    1353      1525       387   387-576    63
+     2   0      11990    1764      2107       579   579-768    63
+     2   1      13817     173      2559      1347   783-1380   63
+     2   2      15649     594      2988      1539  1023-1620   63
+     3   0      17485     977      3457      1731  1281-1878   61
+     3   1      19311    1394      3962      1923  1518-2112   62
+     3   2      21133    1999      4376      2115  2115-2304   62
+     4   0      22965    2376      4948      2307  2307-2496   63
+     4   1      24791    2815      5397      2499  2499-2688   63
+     4   2      26628    1165      5810      2691  2691-2880   63
+     5   0      28456    1592      6407      2883  2883-3072   63
+     5   1      30266    2006      6931      3075  3075-3264   63
+     5   2      32107    2413      7361      3267  3267-3456   63
+    Turned off SM and DMAs at t+127491 us, vs 27428 nominal
+
+As can be seen, numerous anomalies occurred in the 35 KHz run.  First
+value in buffer often is not the min value, and OK step counts several
+times isn't 63.
+
+"Impossible" results can occur because OK steps are counted in a loop
+that completes before the print statement in which first/min/max are
+calculated and printed.  Those calculations saw different buffer
+contents than the step counting loop. Of course, the steps loop could
+be rewritten to also compute first/min/max.  That probably would keep
+buffer checking ahead of buffer filling, for this case of only 5
+buffer fills per channel, but not handle much more than that.
+However, speeds of 50-60 KHz would be feasible if using both of the
+CPUs on the RP2040, as described next.
+
+Multiprocessing Example
+------------------------------------------
+
+With two CPUs and three DMA buffers, one buffer can be filling while
+the other two are being processed.  For example, suppose it takes 2000
+us to fill a buffer, and 2500 us to process it.
+
+Further suppose DMA 2 has been filling buffer 2 for 100 us; that CPU 0
+has been processing buffer 0 for 2100 us; and that CPU 1 has been
+processing buffer 1 for 100 us.
+
+In another 400 us, CPU 0 will go idle, done with buffer 0.  Another
+1500 us along, DMA 2 will finish filling buffer 2, and trigger DMA 0
+to begin filling buffer 0.  At this point, CPU 1 has 500 us of
+processing left to finish with buffer 1, and CPU 0 has 2500 us of
+processing to do with buffer 2.  And so forth.
+
+Output: Run at 40 KHz
+-----------------------------
+
+During the 40 KHz run, the RP2040 hung up and did not resume proper
+working until I pressed its reset button and clicked thonny's
+stop/restart button.  This fairly dependably made the RP again usable
+via thonny, but after one crash it was necessary to power-cycle to
+resume.  I don't have an explanation for how these crashes occurred --
+I intended to write ISR and callback routines that don't crash even at
+overwhelming data rates.  Note, one observation re avoidable hangs:
+using a return early in the callback routine (rather than 'falling off
+the end' to exit) produced hangs.  ::
+
+    System frequency   = 125000000
+    SM  step frequency =    240000 Hz =  4 us
+    SM steps per cycle =         6
+    SM cycle frequency =  40000.00 Hz = 25 us
+    Data collects during next 24000 us, w/progress notes
+    
+    Entry    Interrupt   Microseconds to    First    Range     OK
+     #  DMA#  time, us  Callback & Report   value   min-max   steps
+     1   0       6103      56       176         3     3-192    63
+     1   1       7688    1143      1306       195   195-384    63
+     1   2       9269    1848      2017       387   387-990    63
+     2   0      10871    2510      2839      1155   705-1302   61
+     2   1      12478    1109      3589      1347  1347-1536   61
+     2   2      14073    1840      4247      1539  1539-1728   63
+     3   0      15675    2485      5059      1731  1731-1920   63
+     3   1      17275    3108      5746      1929  1533-2112   62
+     3   2      18877    1744      6437      2115  2115-2304   63
+     4   0      20462    2413      7246      2883  2376-2976   63
+     5   0      25264    2328      2444      2883  2883-3072   63
+     4   1      22073    3048      9797  
+    Connection lost (device reports readiness to read but returned no data
+
+
 
 ---------------------------
 
-show 20 - 25 - 30 etc data here
-
----------------------------
-
-
----------------------------
-
-At 40 KHz, tests didn't complete -- data accumulated faster than one
-CPU could process and it crashed.  Using both RP2040 CPUs, speeds over
-50 KHz would be feasible.  <show 40KHz data>
-
----------------------------
-
-Note, code was tested 19 Jan 2025 on an RP2040 running MicroPython v1.25.0, via
+Note, code was tested 20 Jan 2025 on an RP2040 running MicroPython v1.25.0, via
 Thonny 3.3.14 IDE on an ubuntu.22.04 Linux system.  ::
 
     MicroPython v1.25.0-preview.160.gc73204128 on 2024-12-30; Raspberry Pi Pico with RP2040

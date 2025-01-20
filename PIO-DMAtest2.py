@@ -28,7 +28,7 @@ RRtop=const(RRwords*RRsets)
 BufWords=const(64)        # number of words per work buffer
 SizCode=const(2)          # s=0/1/2 for 2^s bytes per transfer
 NDMA=const(3)             # number of DMA's to run
-SMFreq=const(18000)        # Base frequency for PIO State Machine
+SMFreq=const(240000)        # Base frequency for PIO State Machine
 @rp2.asm_pio(fifo_join=PIO.JOIN_RX)  # Use both 4-fifos as an 8-fifo
 def pioProg0():        # State machine with 6-cycle loop
     set(y, 0)
@@ -96,14 +96,13 @@ class DISR():   # Class that incorporates DMA & interrupt handler
             ds, r, ro, it = self.dms,  self.rr,  self.rro,  self.it 
             ti = r[ro]-it;   tcb = r[ro+1]-r[ro];   tck=te-r[ro]
             # Print time-in-program and times since interrupt
-            print(f'{1+ro//RRwords:2} {ds.channel:>3}  {ti:>9} {tcb:>7} {tck:>8}', end='')
-            n3=0;    vp = ww[0]
+            print(f'{1+ro//RRwords:2} {ds.channel:>3}  {ti:>9} {tcb:>7} {tck:>9}', end='')
+            n3=0
             # Count the number of 3-unit steps in buffer
             for j in range(1, BufWords):
-                if ww[j]==3+vp:
+                if ww[j]==3+ww[j-1]:
                     n3 += 1
-                vp = ww[j]
-            print(f'  {ww[0]:>9}  {min(ww):>4}-{max(ww):<4}  {n3:>3}')
+            print(f' {ww[0]:>9}  {min(ww):>4}-{max(ww):<4}  {n3:>3}')
             self.rro = min(RRtop, ro+RRwords)
 
     # In callback, save times & value.  Set up for next DMA run, or stop
