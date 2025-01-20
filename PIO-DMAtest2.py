@@ -24,10 +24,11 @@ TIMELR=const(0x4005400C)  # From table 527 in 4.6.5 of Datasheet
 DREQ_PIO0_RX0 = const(4)  # From 2.5.3.1. DREQ Table in Datasheet
 RRwords=const(2)          # number of words per result record
 RRsets=const(5)           # number of result records per DMA
+RRtop=const(10)           #   RRwords*RRsets
 BufWords=const(64)        # number of words per work buffer
 SizCode=const(2)          # s=0/1/2 for 2^s bytes per transfer
-nDMA=const(3)             # number of DMA's to run
-SMFreq=const(150000)        # Base frequency for PIO State Machine
+NDMA=const(3)             # number of DMA's to run
+SMFreq=const(18000)        # Base frequency for PIO State Machine
 @rp2.asm_pio(fifo_join=PIO.JOIN_RX)  # Use both 4-fifos as an 8-fifo
 def pioProg0():        # State machine with 6-cycle loop
     set(y, 0)
@@ -56,7 +57,8 @@ class DISR():   # Class that incorporates DMA & interrupt handler
         self.it  = it           # nominal initial time
         self.rri = self.rro = 0 # Results-record indices, in & out
         # Make rr array to track up to RRsets result records
-        self.rr = array.array('I', [0]*(1+RRsets)*RRwords)
+        #self.rr = array.array('I', [0]*(RRtop+RRwords) # + a pad record
+        self.rr = array.array('I', [0]*12) # + a pad record
         # Make wa work array to record data from PIO
         self.wa = array.array('I', [0]*BufWords)
         # Allocate reference CBref to callback function ISRCB...
@@ -89,25 +91,21 @@ class DISR():   # Class that incorporates DMA & interrupt handler
         ds.active(0)        # Turn off DMA channel
 
     @micropython.native
-    def checkBuffer(self):  # Count number of ok steps in buffer
-        ww = self.wa;    n3=0;    vp = ww[0];
-        # Count the number of 3-unit steps in buffer
-        for j in range(1, BufWords):
-            if ww[j]==3+vp:
-                n3 += 1
-            vp = ww[j]
-        print(f'  {ww[0]:>9}  {min(ww):>4}-{max(ww):<4}  {n3:>3}')
-
-    @micropython.native
     def checkRR(self):
-        te = ticks_us()
+        te = ticks_us();    ww = self.wa
         while self.rro < self.rri:
             ds, r, ro, it = self.dms,  self.rr,  self.rro,  self.it 
             ti = r[ro]-it;   tcb = r[ro+1]-r[ro];   tck=te-r[ro]
             # Print time-in-program and times since interrupt
-            print(f'{ro:2}  {ds.channel}  {ti:>9} {tcb:>7} {tck:>8}', end='')
-            self.checkBuffer()
-            self.rro += RRwords
+            print(f'{1+ro//RRwords:2} {ds.channel:>3}  {ti:>9} {tcb:>7} {tck:>8}', end='')
+            n3=0;    vp = ww[0]
+            # Count the number of 3-unit steps in buffer
+            for j in range(1, BufWords):
+                if ww[j]==3+vp:
+                    n3 += 1
+                vp = ww[j]
+            print(f'  {ww[0]:>9}  {min(ww):>4}-{max(ww):<4}  {n3:>3}')
+            self.rro = min(RRtop, ro+RRwords)
 
     # In callback, save times & value.  Set up for next DMA run, or stop
     @micropython.native
@@ -117,7 +115,7 @@ class DISR():   # Class that incorporates DMA & interrupt handler
         r[s+0] = tus            # Save ISR time
         r[s+1] = u              # Save callback time
         ds.write = self.aw      # Reset the output address
-        if self.rri <= (RRsets-1)*RRwords:
+        if self.rri < RRtop:
             self.rri += RRwords
             ds.count = BufWords
         else:
@@ -138,10 +136,10 @@ def main():
     print(f'SM  step frequency = {SMFreq :9} Hz = {smPeriod:2.0f} us')
     print(f'SM steps per cycle = {smSteps:9}')
     print(f'SM cycle frequency = {cyFreq :9.2f} Hz = {cyPeriod:2.0f} us')
-    nomTTime = int(cyPeriod*BufWords*RRsets*nDMA)
+    nomTTime = int(cyPeriod*BufWords*RRsets*NDMA)
     print(f'Data collects during next {nomTTime} us, w/progress notes\n')
-    print('        Interrupt   Microseconds to    First    Range     OK')
-    print('rr DMA#  time, us  Callback & Report   value   min-max   steps')
+    print('Entry    Interrupt   Microseconds to    First    Range     OK')
+    print(' #  DMA#  time, us  Callback & Report   value   min-max   steps')
     smx = StateMachine(sm_number, pioProg0, freq=SMFreq)
     # PIOblok is block 0 or block 1.  sm_number is state machine number 
     PIOblok = 0
@@ -149,11 +147,11 @@ def main():
     t0 = ticks_us()+postti  # Nominal starting time
     daa = []
     #============Setup DMA channels, with DISRs for IRQs========
-    for ix in range(nDMA):    # Make list of DMA channels
+    for ix in range(NDMA):    # Make list of DMA channels
         daa.append(DISR(t0, ix))
     # Finish setting up DMA channels, including chain-to's
     for dm in daa:   # Set up DMA registers
-        chainee = daa[(1+dm.ix)%nDMA] # Find channel to chain to
+        chainee = daa[(1+dm.ix)%NDMA] # Find channel to chain to
         #        r@   incRd  incWr  treq=          other=
         dm.setup(smx, False, True,  DREQ_PIO0_RX0, chainee)
         ds = dm.dms             # ds = DMA data structure
@@ -172,7 +170,6 @@ def main():
     sleep_us(10000)
     for dm in daa:  dm.checkRR()
     print()
-    #for dm in daa:  dm.checkBuffer() #checkBuffer(dm.wa)
     #=======================/End of main\========================
 if __name__ == "__main__":
     wa = main()

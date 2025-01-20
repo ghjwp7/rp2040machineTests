@@ -13,10 +13,17 @@ Raspberry Pi Pico.
 
 ------------------
 
-🔵 See `README-PIO-DMAtest <README-PIO-DMAtest>`_ for description of
+🔵 See `README-PIO-DMAtest1 <README-PIO-DMAtest1>`_ for description of
 `PIO-DMAtest1 <PIO-DMAtest1.py>`_, a demonstration of putting RP2040
 PIO State Machine output into memory, via DMA transfer.  That `README`
 describes a PIO-DMA test program and shows example output.
+
+------------------
+
+🔵 See `README-PIO-DMAtest2 <README-PIO-DMAtest2>`_ for description of
+`PIO-DMAtest2 <PIO-DMAtest2.py>`_ and its results.  `PIO-DMAtest2`
+sets up several DMA channels, chained in a loop to run until shut
+down.  Includes DMA interrupt handler and scheduled-callback.
 
 ------------------
 
