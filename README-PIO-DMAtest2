@@ -11,19 +11,16 @@ Machine output into memory, via DMA transfer with DMA interrupts and
 chaining.  It acts as follows:
 
 • Creates a state machine `smx` to increment a counter by 3 between stores
-• Sets up three DMA channel that get words from `smx` and store into buffers
+• Sets up three DMA channels that get words from `smx` and store into buffers
 • Runs a wait loop that analyzes current results each time a buffer fills
 
-Note, `smx` has its two 4-word Rx and Tx fifos combined into one
+Note, `smx` has its two 4-word fifos Rx and Tx combined into one
 8-word Rx fifo.
 
-Three sets of example output are shown below, taken with state machine
-`smx` producing words at 20, 25, and 30 KHz.  After each full-buffer
-interrupt and callback, the main thread prints out action times,
-buffer min and max, and sequence-check results.  At 40 KHz, tests
-didn't complete -- data accumulated faster than one CPU could process
-and it crashed.  Using both RP2040 CPUs, speeds over 50 KHz would be
-feasible.
+Several sets of example outputs are shown below, taken with state
+machine `smx` producing words at for example 20, 25, and 30 KHz.
+After each full-buffer interrupt and callback, the main thread prints
+out action times, buffer min and max, and sequence-check results.
 
 The first part of output for each test case is like the output from
 `PIO-DMAtest1`.  We have system frequency = 125000000, followed by
@@ -50,6 +47,22 @@ previous entry, all as expected for the third buffer fill for channel
 0 of 3 channels.  (Each buffer fill overwrites a buffer.)  Note, the
 previous buffer -- fill 2 for DMA 2 -- ended with 1152, which is
 3*3*64*2 = step*chans*bufwords*fills.
+
+---------------------------
+
+
+---------------------------
+
+show 20 - 25 - 30 etc data here
+
+---------------------------
+
+
+---------------------------
+
+At 40 KHz, tests didn't complete -- data accumulated faster than one
+CPU could process and it crashed.  Using both RP2040 CPUs, speeds over
+50 KHz would be feasible.  <show 40KHz data>
 
 ---------------------------
 
