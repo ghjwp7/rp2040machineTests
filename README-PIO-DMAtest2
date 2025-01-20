@@ -169,7 +169,7 @@ Runs at 30 and 35 KHz
 In the 30 KHz run (above) all results are nominal, but obviously the
 CPU is not quite keeping up with the data rate -- delay between
 interrupt and associated callback grows steadily, until DMA 0 shuts
-off, after which it drops.  Sequence results all are nominal and
+off, letting it drop.  Sequence results all are nominal and
 correct. That is not the case in the 35 KHz run; sequence results are
 not all correct::
 

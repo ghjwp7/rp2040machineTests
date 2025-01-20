@@ -20,6 +20,10 @@ from utime   import ticks_us, sleep_us
 from uctypes import addressof
 import array
 import micropython
+
+SMCyFreq=const(26000)     # Target cycle frequency for PIO State Machine
+SMSteps=const(6)          # SM steps per SM cycle
+SMFreq=const(SMCyFreq*SMSteps) # Base frequency for PIO State Machine
 TIMELR=const(0x4005400C)  # From table 527 in 4.6.5 of Datasheet
 DREQ_PIO0_RX0 = const(4)  # From 2.5.3.1. DREQ Table in Datasheet
 RRwords=const(2)          # number of words per result record
@@ -28,7 +32,6 @@ RRtop=const(RRwords*RRsets)
 BufWords=const(64)        # number of words per work buffer
 SizCode=const(2)          # s=0/1/2 for 2^s bytes per transfer
 NDMA=const(3)             # number of DMA's to run
-SMFreq=const(240000)        # Base frequency for PIO State Machine
 @rp2.asm_pio(fifo_join=PIO.JOIN_RX)  # Use both 4-fifos as an 8-fifo
 def pioProg0():        # State machine with 6-cycle loop
     set(y, 0)
@@ -127,13 +130,12 @@ def main():
     micropython.alloc_emergency_exception_buf(100)
 
     sm_number = 0;  PIOnum = 0
-    smSteps = 6                 # sm steps per sm pass
-    cyFreq = SMFreq/smSteps;  cyPeriod = 1e6*smSteps/SMFreq
+    cyPeriod = 1e6/SMCyFreq
     smPeriod =  1e6/SMFreq
     print(f'System frequency   = {freq() :9}')
-    print(f'SM  step frequency = {SMFreq :9} Hz = {smPeriod:2.0f} us')
-    print(f'SM steps per cycle = {smSteps:9}')
-    print(f'SM cycle frequency = {cyFreq :9.2f} Hz = {cyPeriod:2.0f} us')
+    print(f'SM  step frequency = {SMFreq :9} Hz = {smPeriod:>6.2f} us')
+    print(f'SM steps per cycle = {SMSteps:9}')
+    print(f'SM cycle frequency = {SMCyFreq :9} Hz = {cyPeriod:>6.2f} us')
     nomTTime = int(cyPeriod*BufWords*RRsets*NDMA)
     print(f'Data collects during next {nomTTime} us, w/progress notes\n')
     print('Entry    Interrupt   Microseconds to    First    Range     OK')
