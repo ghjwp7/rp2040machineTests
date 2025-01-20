@@ -11,7 +11,8 @@ Machine output into memory, via DMA transfer with DMA interrupts and
 chaining.  It acts as follows:
 
 • Creates a state machine `smx` to increment a counter by 3 between stores
-• Sets up three DMA channels that get words from `smx` and store into buffers
+• Sets up three chained DMA channels that get words from `smx` and
+  store into buffers
 • Runs a wait loop that analyzes current results each time a buffer fills
 
 Note, `smx` has its two 4-word fifos Rx and Tx combined into one
