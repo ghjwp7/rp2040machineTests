@@ -24,7 +24,7 @@ TIMELR=const(0x4005400C)  # From table 527 in 4.6.5 of Datasheet
 DREQ_PIO0_RX0 = const(4)  # From 2.5.3.1. DREQ Table in Datasheet
 RRwords=const(2)          # number of words per result record
 RRsets=const(5)           # number of result records per DMA
-RRtop=const(10)           #   RRwords*RRsets
+RRtop=const(RRwords*RRsets)
 BufWords=const(64)        # number of words per work buffer
 SizCode=const(2)          # s=0/1/2 for 2^s bytes per transfer
 NDMA=const(3)             # number of DMA's to run
@@ -56,9 +56,8 @@ class DISR():   # Class that incorporates DMA & interrupt handler
         self.ix  = ix           # index in daa list
         self.it  = it           # nominal initial time
         self.rri = self.rro = 0 # Results-record indices, in & out
-        # Make rr array to track up to RRsets result records
-        #self.rr = array.array('I', [0]*(RRtop+RRwords) # + a pad record
-        self.rr = array.array('I', [0]*12) # + a pad record
+        # Make rr array to track up to RRsets result records, + pad
+        self.rr = array.array('I', [0]*RRtop+[0]*RRwords)
         # Make wa work array to record data from PIO
         self.wa = array.array('I', [0]*BufWords)
         # Allocate reference CBref to callback function ISRCB...

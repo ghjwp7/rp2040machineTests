@@ -47,8 +47,9 @@ busy loop saw `rro<rri` and wrote the data line shown, to say that DMA
 channel 0's buffer's word 0 holds 1155; that min and max are 1155 and
 1344; and that 63 of the buffer's 64 entries are 3 more than the
 previous entry, all as expected for the third buffer fill for channel
-0 of 3 channels.  (Each buffer fill overwrites a buffer.)  Note, 1155
-= 3 + 3*3*64 = starting value + chans*fills*words.  
+0 of 3 channels.  (Each buffer fill overwrites a buffer.)  Note, the
+previous buffer -- fill 2 for DMA 2 -- ended with 1152, which is
+3*3*64*2 = step*chans*bufwords*fills.
 
 ---------------------------
 
