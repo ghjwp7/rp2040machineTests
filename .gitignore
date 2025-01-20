@@ -3,3 +3,4 @@ rp2_dma.py*
 __pycache__
 *DMAtest0.py
 memoryAlign*
+typedebug.py
