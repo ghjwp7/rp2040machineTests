@@ -1,12 +1,12 @@
-.. -*- mode: rst -*-  #  RM for dmaCtrlRegBits.py - jiw - 1 Jan 2025
-..  To view this in html in browser, use `restview fn` (fn=this file)
+.. -*- mode: rst -*-  #  RM for DMA_CtrlReg - jiw - 1 Jan 2025
+..  To view this in html in browser, use `restview <fn>` (fn=this file)
 ..  Browser page updates when changed version is stored.
 
-README-dmaCRB.rst
+README-DMA_CtrlReg
 
-========================================
-dmaCtrlRegBits.py & testDCRB.py
-========================================
+================================================================
+`DMA_CtrlReg.py <DMA_CtrlReg.py>`_ & `testDCR.py <testDCR.py>`_
+================================================================
 
 DMA control registers like `CHx_CTRL_TRIG, CHx_AL1_CTRL,
 CHx_AL2_CTRL,` and `CHx_AL3_CTRL` on an RP2040 system (eg, a Raspberry
@@ -16,20 +16,34 @@ names and widths.  One could manually decode control register values,
 but using a program as described here can save time and effort when
 decoding such values.
 
-`dmaCtrlRegBits.py` contains four small functions to assist in
+
+`DMA_CtrlReg.py` contains four small functions to assist in
 decoding or printing values of bit fields from a packed DMA control
-register value.  `testDCRB.py` imports functions from
-`dmaCtrlRegBits.py` and runs tests.
+register value.  `testDCR.py` imports functions from
+`DMA_CtrlReg` and runs tests.
 
+The routines here may be useful if you want to compactly print
+control register settings.  If less-compact output is ok, you can
+instead do the following (where p=control register value)::
+
+  from rp2 import DMA
+  print(f'{p=:08x}  {DMA.unpack_ctrl(p)}')
+  
 --------------------------------------
-Example Output from testDCRB.py
+Example Output from testDCR.py
 --------------------------------------
 
-Output shown below is from `testDCRB`.  The first section shows the
-tuple that `dmaCtrlRegBits.fieldList()` returns.  [Line-breaks added
-for readability.] For each field, the tuple has a tuple with field name
-and number of bits in field.  Example: `treq_sel` field is 6 bits
-long.  Note, see Table 124 in Datasheet for field explanations. ::
+Output shown below is from `testDCR`.  The first section shows the
+tuple that `DMA_CtrlReg.fieldList()` returns.  [Line-breaks added for
+readability.]  With control-word fields listed in ascending order from
+LSB, the tuple has a pair for each field, with **field name** and
+**number of bits** in field.  *Comment:* If field order and field size
+are not of interest, one can use the `DMA.unpack_ctrl(p)` function to
+get field names and values for control-word `p`.
+
+Example: From tuple entry **('treq_sel', 6)**, the **treq_sel** field
+is 6 bits long.  Note, see Table 124 in Datasheet for field
+explanations. ::
 
     fieldList(): (('enable', 1), ('high_pri', 1), ('size', 2),
     ('inc_read', 1), ('inc_write', 1), ('ring_size', 4), ('ring_sel', 1),
@@ -37,8 +51,8 @@ long.  Note, see Table 124 in Datasheet for field explanations. ::
     ('sniff_en', 1), ('busy', 1), ('reserved', 4), ('write_err', 1),
     ('read_err', 1), ('ahb_err', 1))
 
-The second section of `testDCRB` output shows byte arrays returned by
-five calls to `dmaCtrlRegBits.unpackVals(p)`, for hex values of `p` as
+The second section of `testDCR` output shows byte arrays returned by
+five calls to `DMA_CtrlReg.unpackVals(p)`, for hex values of `p` as
 in parentheses. ::
 
                                            sz ir iw         treq         bz    we re ae
@@ -48,9 +62,9 @@ in parentheses. ::
     unpackVals(003f8021): array('b', [1, 0, 0, 0, 1, 0, 0, 0, 63, 1, 0, 0, 0, 0, 0, 0, 0])
     unpackVals(003f8025): array('b', [1, 0, 1, 0, 1, 0, 0, 0, 63, 1, 0, 0, 0, 0, 0, 0, 0])
 
-The last section of `testDCRB` output shows a two-line title printed by
-`dmaCtrlRegBits.printHeadLines()`, followed by output from five calls
-to `dmaCtrlRegBits.printCodes(p)`.  The code that prints field names
+The last section of `testDCR` output shows a two-line title printed by
+`DMA_CtrlReg.printHeadLines()`, followed by output from five calls
+to `DMA_CtrlReg.printCodes(p)`.  The code that prints field names
 breaks them arbitrarily into two 4-character pieces, discarding any
 characters beyond the first 8. ::
 
@@ -68,8 +82,8 @@ characters beyond the first 8. ::
 
 Code was tested 5 Jan 2025 in Python 3.10.12 on an ubuntu.22.04 Linux
 system.  When running this test on an RP2040-based system with
-MicroPython, both of `testDCRB.py` and `dmaCtrlRegBits.py` need to be
+MicroPython, both of `testDCR.py` and `DMA_CtrlReg.py` need to be
 on the system.
 
-jiw - 5 Jan 2025
+jiw - 5 Jan, 20 Jan 2025
 

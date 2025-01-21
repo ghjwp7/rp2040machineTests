@@ -6,23 +6,25 @@
 PIO-DMAtest2
 ========================================
 
-**Aim:** `PIO-DMAtest2` is a test / demo of putting RP2040 PIO State
-Machine output into memory, via DMA transfer with DMA interrupts and
-chaining.  It acts as follows:
+**Aim:** `PIO-DMAtest2 <PIO-DMAtest2.py>`_ uses an RP2040 PIO State
+Machine to make data that DMA channels store into a rotating set of
+buffers.  Uses DMA interrupts and DMA chaining.  It acts as follows:
 
 • Creates a state machine `smx` to increment a counter by 3 between stores
 • Sets up three chained DMA channels that get words from `smx` and
   store into buffers
-• Runs a wait loop that analyzes current results each time a buffer fills
+• Has a DMA hard interrupt handler that schedules a callback routine
+  at each buffer completion
+• Runs a wait loop that analyzes current results, when it sees a
+  buffer-ready indication
 
 Note, `smx` has its two 4-word fifos Rx and Tx combined into one
 8-word Rx fifo.
 
 Example output appears below, taken with state machine `smx` producing
-words at 20, 25, 30, 35, and 40 KHz.  Output for each test case begins
-with system frequency, followed by state-machine data -- step
-frequency, steps per cycle, and cycle frequency.  For example, at 20
-KHz SM cycle::
+words at 20 to 40 KHz.  Initial output for each test case shows system
+frequency and state-machine data -- step frequency, steps per cycle,
+and cycle frequency.  For example, at 20 KHz SM cycle::
 
     System frequency   = 125000000
     SM  step frequency =    120000 Hz =  8 us
@@ -30,15 +32,16 @@ KHz SM cycle::
     SM cycle frequency =  20000.00 Hz = 50 us
     Data collects during next 48000 us, w/progress notes
 
-The main thread prints headings, and then, after each full-buffer
-interrupt and callback, prints out action times, buffer min and max,
-and sequence-check results, typically in 15 lines of data -- three DMA
-channels each making five buffer fills. Each buffer fill overwrites a
-buffer.
+Then the main thread prints headings (see below).  After each
+full-buffer-interrupt callback occurs, it prints out action times,
+buffer first/min/max, and sequence-check results.  Typically this is
+15 lines of data -- three DMA channels each make five buffer fills
+(overwrites).
 
 Each data line shows a numbered entry with the time of a DMA
-interrupt, how long before callback and processing started, and buffer
-analysis -- min, max, sequence check.  For example::
+interrupt, the delay before callback and processing started, and a
+buffer analysis with first/min/max and a sequence check.  For
+example::
 
     Entry    Interrupt   Microseconds to    First    Range     OK
      #  DMA#  time, us  Callback & Report   value   min-max   steps
@@ -209,8 +212,8 @@ contents than the step counting loop. Of course, the steps loop could
 be rewritten to also compute first/min/max.  That probably would keep
 buffer checking ahead of buffer filling, for this case of only 5
 buffer fills per channel, but not handle much more than that.
-However, speeds of 50-60 KHz would be feasible if using both of the
-CPUs on the RP2040, as described next.
+However, speeds of 50 KHz would be feasible if using both of the CPUs
+on the RP2040, as described next.
 
 Multiprocessing Example
 ------------------------------------------
