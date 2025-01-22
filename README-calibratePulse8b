@@ -109,14 +109,15 @@ Output - 343500 edges, 12 KHz wave frequency
                        Histogram Results                      
   171750 GR:   5046 nom,  5045.0625 avle    ≤4996: 1  =5045: 161015  =5046: 10734  
   171750 GF:    163 nom,   163.2500 avle    =163: 128812  =164: 42938  
-  Total average (less edges) =  5208.3125, nomCy 166667, total nom 5209
+  Total average (less edges) =  5208.3125, nomCy 5208.333, total nom 5209
 
 Above, the "About to get..." and "Processed..." lines were separated
 by about 14.3 seconds as the program collected data.  In the GR: and
 GF: Histogram Result lines, one rising-edge count was some value at or
 below 4996.  In single-value bins (vs ranges), count 5045 appeared
 161015 times, 5046 10734 times, and so forth.  Other output fields are
-explained in the following table.  Note, ignore nomCy value.
+explained in the following table.  Note, ignore nomCy values below shown
+as NA (due to error in old code).
 
 ========================  ================  =========================================
 Field Name                Example Value         Purpose
@@ -133,10 +134,10 @@ nom                        5046 nom         Number of counts expected for phase 
 avle                       5045.0625 avle   Average based on histo data, less extremes
 total nom                  5209             Sum of noms -- GR nom + GF nom
 Total average less edges   5208.3125        Sum of avle values
-nomCy                      166667           ?
+nomCy                      5208.333         Actual expected counts per wave cycle
 ========================  ================  =========================================
 
-to do: 1, fix nomCy calc.  2, with small buffer + circ buffer save
+to do: 1,  with small buffer + circ buffer save
 first 8 & last 8 words, to get better comparison of Counted time vs
 Predicted time
 
@@ -178,7 +179,7 @@ may be occurring somewhere in the code.
                        Histogram Results                      
   171800 GR:   6055 nom,  6054.0000 avle    ≤6005: 1  =6054: 171799  
   171800 GF:    195 nom,   196.0000 avle    =196: 171800  
-  Total average (less edges) =  6250.0000, nomCy 200000, total nom 6250
+  Total average (less edges) =  6250.0000, nomCy NA, total nom 6250
 
 
   Making state machine instances
@@ -195,7 +196,7 @@ may be occurring somewhere in the code.
                        Histogram Results                      
   172005 GR:   6055 nom,  6055.0000 avle    ≤6005: 1  =6055: 171933  ≥6105: 71
   171995 GF:    195 nom,   195.0000 avle    ≤145: 62  =195: 171905  ≥245: 28
-  Total average (less edges) =  6250.0000, nomCy 200000, total nom 6250
+  Total average (less edges) =  6250.0000, nomCy NA, total nom 6250
 
 200 MHz system clock run
 ---------------------------------------------
@@ -218,7 +219,7 @@ freq()``, which displayed 200000000.  Then, running 8b gave::
                        Histogram Results                      
   171751 GR:   9688 nom,  9687.0000 avle    ≤9638: 1  =9687: 171715  ≥9738: 35
   171749 GF:    312 nom,   313.0000 avle    ≤262: 1  =313: 171748  
-  Total average (less edges) = 10000.0000, nomCy 320000, total nom 10000
+  Total average (less edges) = 10000.0000, nomCy NA, total nom 10000
 
 Note different rising and falling edge counts, and 36 rising-edge
 entries more than 50 counts away from expected count (nominally 9688).

@@ -22,8 +22,8 @@ from rp2     import PIO, asm_pio, StateMachine
 from utime   import sleep_us, ticks_us
 # =const()  # from machine import freq; freq(000000); freq()
 #-----------------------------------------------------------
-NEdges=const(343600)    # Number of wave edges we'll observe
-WaveFreq=const(10000)  # Desired wave rate from wave state machine
+NEdges=const(34360)    # Number of wave edges we'll observe
+WaveFreq=const(12000)  # Desired wave rate from wave state machine
 CycTot=const(32)       # State-machine step per wave cycle
 SMFreq=const(WaveFreq*CycTot) # Step-frequency of wave SM
 W_out_Pin=const(13)
@@ -171,7 +171,7 @@ def takeReadings(wsm, cycUp, waveRatio, counterFreq):
     csm.active(0)     # Stop counter SM
     return (histGR,histGF), (baseGR,baseGF,), xlast, skips, t0, t1
 #--------------------------------------------------------
-def shoHisto(hist, base, nomCy):
+def shoHisto(hist, base, waveRatio):
     print(f'{'Histogram Results':^60}')
     hsize = len(hist[0]);  m = hsize//2;  e = hsize-1
     midk = (m-1,m,m+1)
@@ -199,7 +199,7 @@ def shoHisto(hist, base, nomCy):
                 else:       print(f'[{b}-{bj[k+1]}): {h}  ', end='')
         print()
         #print(f'{rav=:10.4f}  {trav=:10.4f}  {rnom=}')
-    print(f'Total average (less edges) = {trav:10.4f}, nomCy {nomCy}, total nom {rnom}')
+    print(f'Total average (less edges) = {trav:10.4f}, nomCy {waveRatio:5.3f}, total nom {rnom}')
 #--------------------------------------------------------
 def main():
     print("Making state machine instances")
@@ -212,7 +212,7 @@ def main():
     print(f'Counts per second = {countSMFreq//2:9} Hz, {nsPerCount:9.2f} ns')
     print(f'  Wave frequency  = {WaveFreq:9} Hz, {nsPerWave:9.2f} ns')
     print(f'About to get {NEdges} edges in {waveSeconds:3.1f} sec. with wave type {waveType}')
-    waveRatio = nsPerWave/nsPerCount
+    waveRatio = (countSMFreq/WaveFreq)/2   # counter counts per wave-cycle
     sm, cycUp = makeSMwave(waveType)  # Make wave state machine
     r = takeReadings(sm, cycUp, waveRatio, countSMFreq)
     histos, bases, xlast, skips, t0, t1 = r
@@ -226,8 +226,7 @@ def main():
     print(f'Counted time {tlast:14.3f} us  Clock-count avg diff {terr:9.3f} ns')
     print(f'Predicted time {1e6*waveSeconds:12.3f} us     less counted time {pt_tl:9.3f} us\n')
 
-    nomCy = round(waveRatio*CycTot)
-    shoHisto(histos, bases, nomCy)
+    shoHisto(histos, bases, waveRatio)
     #==========================================================
 if __name__ == "__main__":
     main()
