@@ -201,7 +201,7 @@ def shoHisto(hist, base, waveRatio):
                 else:       print(f'[{b}-{bj[k+1]}): {h}  ', end='')
         print()
         #print(f'{rav=:10.4f}  {trav=:10.4f}  {rnom=}')
-    print(f'Total average (less edges) = {trav:10.4f}, nomCy {waveRatio:5.3f}, total nom {rnom}')
+    print(f'Total average (less edges) = {trav:10.5f}, nomCy {waveRatio:7.5f}, total nom {rnom}')
 #--------------------------------------------------------
 def main():
     print("Making state machine instances")
@@ -209,7 +209,7 @@ def main():
     countSMFreq=freq();
     nsPerCount = 2e9/countSMFreq # 2 SM cycles per count
     nsPerWave  = 1e9/WaveFreq
-    waveSeconds = NEdges/WaveFreq/2
+    waveSeconds = (NEdges/2.0)/WaveFreq
     print(f'System frequency  = {freq():9} Hz, {1e9/freq():9.2f} ns')
     print(f'Counts per second = {countSMFreq//2:9} Hz, {nsPerCount:9.2f} ns')
     print(f'  Wave frequency  = {WaveFreq:9} Hz, {nsPerWave:9.2f} ns')
@@ -223,21 +223,23 @@ def main():
     terr = 1000*(td-tlast)/nitems
     pt_tl = 1e6*waveSeconds - tlast
     print(f'Processed {nitems} items with {skips} skips in {td/1e6:8.6f} sec\n')
-
-    print(f'Clock time {td:12} us    Clock-count total diff {td-tlast:9.3f} us')
-    print(f'Counted time {tlast:14.3f} us  Clock-count avg diff {terr:9.3f} ns')
-    print(f'Predicted time {1e6*waveSeconds:12.3f} us     less counted time {pt_tl:9.3f} us\n')
+    # Use x.1f in several items below to avoid fake accuracy w/ 6-7 FP digits.
+    print(f'Clock time {td:12} us   Clock-count total diff{td-tlast:7.1f} us')
+    print(f'Counted time {tlast:12.1f} us   Clock-count avg diff {terr:8.3f} ns')
+    print(f'Predicted time {1e6*waveSeconds:10.1f} us      less counted time{pt_tl:7.1f} us\n')
+    #print(f'{waveSeconds=}  {NEdges=}  {WaveFreq=}  {NEdges/WaveFreq=}  {NEdges/WaveFreq/2=}   {freq()=}')
 
     shoHisto(histos, bases, waveRatio)
 
-    print(f'{ka=}')
+    #print(f'{ka=}')
     krb=[ka[j+1] for j in range(0,KBuf,2) if ka[j]==GRise]
     kre=[ka[j+1] for j in range(KBuf,2*KBuf,2) if ka[j]==GRise]
     kfb=[ka[j+1] for j in range(0,KBuf,2) if ka[j]==GFall]
     kfe=[ka[j+1] for j in range(KBuf,2*KBuf,2) if ka[j]==GFall]
     print(f'{krb=} {kre=}  {kfb=}  {kfe=}')
     krn = kre[-1]-krb[0];  kfn = kfe[-1]-kfb[0]
-    print(f'{krn=}  {krn/waveRatio=:4.6f}   {kfn=}  {kfn/waveRatio=:4.6f}')
+    print(f'{krn=}  krn/nomCy: {krn/waveRatio:4.6f}   {kfn=}  kfn/nomCy: {kfn/waveRatio:4.6f}')
+    print(f'')
     #==========================================================
 if __name__ == "__main__":
     main()
