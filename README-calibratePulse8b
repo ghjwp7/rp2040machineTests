@@ -20,6 +20,10 @@ Note, 8b testing requires a jumper between two pins that are selected
 via declarations like ``W_out_Pin=const(13)`` and
 ``C_in_Pin=const(12)).``
 
+Note!  This version may have system frequency specified at other than
+125 MHz, eg 120 or 180.  See line like ``SysFreq=const(180000000)``
+
+
 At present, `calibratePulse8` handles data from the PIO fifo on the
 fly.  It would be better if data were handled via a good-sized
 buffers, rather than a small fifo, to allow more time leeway when
@@ -142,33 +146,35 @@ Note, ignore any nomCy values below shown as NA (due to former code error).
 to do: have a dma with no read or write advance.  in=TIMELR, out=mem,
 with irq to copy the mem word to small buffer + circ buffer.
   
-to do: have front loops in counter sm to wait for up, wait for down,
-jump to store falling edge.  Ie synchronize that sm to simplify later analysis.
+was to do, but doesn't help: have front loops in counter sm to wait
+for up, wait for down, jump to store falling edge, to synchronize that
+sm and simplify later analysis.  (but didn't sync ok?) Note, ran out
+of PIO words, so put the wait-for-high-level into main thread.
 
-to do: with small buffer + circ buffer save first 8 & last 8 words, to
-get better comparison of Counted time vs Predicted time.  Data
-collection for this is in code now.  Analysis is clunky at moment.
-Example of output for this feature is like last 3 lines of following::
+was to do, gives ok results, but needs work: with small buffer + circ
+buffer save first 8 & last 8 words, to get better comparison of
+Counted time vs Predicted time.  Data collection for this is in code
+now.  Example of output for this feature is like last  lines of
+following, which ran at 180 MHz::
 
   Making state machine instances
-  System frequency  = 125000000 Hz,      8.00 ns
-  Counts per second =  62500000 Hz,     16.00 ns
-    Wave frequency  =     10000 Hz, 100000.00 ns
-  About to get 100000 edges in 5.0 sec. with wave type 3
-  Processed 100000 items with 2 skips in 5.000055 sec
+  System frequency  = 180000000 Hz,      5.56 ns
+  Counts per second =  90000000 Hz,     11.11 ns
+    Wave frequency  =     10000 Hz, 100000.00 ns  from SM freq 250000
+  About to get 20000 edges in 1.0 sec. with wave type 3
+  Processed 20000 items with 0 skips in 0.999971 sec
   
-  Clock time      5000055 us    Clock-count total diff    55.000 us
-  Counted time    5000000.000 us  Clock-count avg diff     0.550 ns
-  Predicted time  5000000.000 us     less counted time     0.000 us
+  Clock time       999971 us   Clock-count total diff  -22.7 us
+  Counted time     999993.7 us   Clock-count avg diff   -1.134 ns
+  Predicted time  1000000.0 us      less counted time    6.3 us
   
                        Histogram Results                      
-   50000 GR:   6055 nom,  6054.0000 avle    (6045-6050]: 1  =6054: 49999  
-   50000 GF:    195 nom,   196.0000 avle    =196: 50000  
-  Total average (less edges) =  6250.0000, nomCy 6250.000, total nom 6250
-  ka=[0, 6049, 1, 6245, 0, 12299, 1, 12495, 0, 312493549, 1, 312493745, 0, 312499799, 1, 312499995]
-  krb=[6049, 12299] kre=[312493549, 312499799]  kfb=[6245, 12495]  kfe=[312493745, 312499995]
-  krn=312493750  krn/waveRatio=49999.000000   kfn=312493750  kfn/waveRatio=49999.000000
-
+   10000 GR:   8640 nom,  8640.0000 avle    ≤8590: 1  =8640: 9999  
+   10000 GF:    360 nom,   360.0000 avle    ≤310: 1  =360: 9999  
+  Total average (less edges) = 9000.00000, nomCy 9000.00000, total nom 9000
+  krb=[8430, 17430] kre=[89990430, 89999430]  kfb=[0, 8790]  kfe=[89981790, 89990790]
+  krn=89991000   krn/nomCy: 9999.000000   krn%|nomCy|: 0
+  kfn=89982000   kfn/nomCy: 9998.000000   kfn%|nomCy|: 0
 
 
 

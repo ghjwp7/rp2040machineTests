@@ -21,56 +21,36 @@
 from machine import freq, Pin
 from rp2     import PIO, asm_pio, StateMachine
 from utime   import sleep_us, ticks_us
-# =const()  # from machine import freq; freq(000000); freq()
+# =const(7457)  # from machine import freq; freq(000000); freq()
 #-----------------------------------------------------------
-NEdges=const(100000)    # Number of wave edges we'll observe
-WaveFreq=const(7457)  # Desired wave rate from wave state machine
-CycTot=const(32)       # State-machine step per wave cycle
+W_out_Pin=const(13)    # Wave SM output pin
+C_in_Pin=const(12)     # Counter input pin
+NEdges=const(20000)    # Number of wave edges we'll observe
+WaveFreq=const(10000)  # Desired wave rate from wave state machine
+SysFreq=const(120000000) # Desired RP2040 system frequency
+# We need CycTot = 3+CycOut = 1+CycUp+CycDn
+CycTot=const(25)       # usually 32, but can set as desired
+CycUp=const(CycTot//2) # CycUp, CycDn are for ~ square wave
+CycDn=const((CycTot-1)//2)
+CycOut=const(CycTot-3) # CycOut is for low-duty or high-duty
 SMFreq=const(WaveFreq*CycTot) # Step-frequency of wave SM
-W_out_Pin=const(13)
-C_in_Pin=const(12)
-GRise=const(0)         # Data item = rising-edge time
-GFall=const(1)         # Data item = falling-edge time
+GRise=const(1)         # Data item = rising-edge time
+GFall=const(0)         # Data item = falling-edge time
 GStart=const(2)        # Data item = unused item
-#-----------------------------------------------------------
-#-----------makeSMwave starts a State machine---------------
-#-----------to generate one of 3 pulse trains---------------
-#-----------------------------------------------------------
-def makeSMwave(snum):   # Set up selected state machine snum
-    @rp2.asm_pio(set_init=rp2.PIO.OUT_LOW)
-    def pioProg1():             # Make a square wave
-        set(pins, 1) [15]       # 16~ up
-        set(pins, 0) [15]       # 16~ down
-    @rp2.asm_pio(set_init=rp2.PIO.OUT_LOW)
-    def pioProg2():             # Make a falling-spikes wave
-        set(pins, 1)            # 31 ~ up
-        nop() [29]
-        set(pins, 0)            # 1 ~ down
-    @rp2.asm_pio(set_init=rp2.PIO.OUT_LOW)
-    def pioProg3():             # Make a rising-spikes wave
-        set(pins, 1)            # 1 ~ up
-        set(pins, 0)            # 31~ down
-        nop() [29]
-
-    if 1 <= snum <= 3:
-        cycUp = (16, 31, 1)[snum-1]  # Duty cycle = cycUp/CycTot
-        pio = (pioProg1, pioProg2, pioProg3)[snum-1]
-        pino = Pin(W_out_Pin, Pin.OUT)
-        sm = StateMachine(snum, pio, freq=SMFreq, set_base=pino)
-        return sm, cycUp
-    else:
-        print('Invalid snum {snum}');  sys.exit()
 #--------------------------------------------------------------
 #--------------------counter state machine---------------------
 #-----------Define State machine 0, to time edges--------------
 @asm_pio(fifo_join=PIO.JOIN_RX)  # Use both 4-fifos as 1 8-fifo
 def counter():
-    set(x, 0)                 # Arbitrary starting value for x
-    set(y, GStart)            # Starting x is not a valid reading
+    set(y, GFall)             # We await a falling edge
+    mov(x, invert(y))         # Start x at ~0
+    #label('0'); jmp(pin, "1") # Wait for high level
+    #jmp('0')    # This loop out due to OSError: [Errno 12] ENOMEM
+    label('1'); jmp(pin, "1") # Wait for low level, then fall thru
     wrap_target()
     #------------Save falling-edge time-------------------
     mov(isr, y)               # Load mark-code y 
-    push(noblock)             # Push mark-code: SStart or GFall
+    push(noblock)             # Push mark-code: GFall
     mov(isr, invert(x))       # Load falling-edge time ~x
     push(noblock)             # Push falling-edge time
 
@@ -108,6 +88,34 @@ def counter():
     #--------------Pin fell, go save falling-edge time--------
     set(y,GFall)   # Wrap to top to save GFall entry
     wrap()
+#-----------------------------------------------------------
+#-----------makeSMwave starts a State machine---------------
+#-----------to generate one of 3 pulse trains---------------
+#-----------------------------------------------------------
+def makeSMwave(snum):   # Set up selected state machine snum
+    @rp2.asm_pio(set_init=rp2.PIO.OUT_LOW)
+    def pioProg1():             # Make a square wave
+        set(pins, 1) [CycUp]       #    up
+        set(pins, 0) [CycDn]       #    down
+    @rp2.asm_pio(set_init=rp2.PIO.OUT_LOW)
+    def pioProg2():             # Make a falling-spikes wave
+        set(pins, 1)            # 31 ~ up
+        nop() [CycOut]
+        set(pins, 0)            # 1 ~ down
+    @rp2.asm_pio(set_init=rp2.PIO.OUT_LOW)
+    def pioProg3():             # Make a rising-spikes wave
+        set(pins, 1)            # 1 ~ up
+        set(pins, 0)            # 31~ down
+        nop() [CycOut]
+
+    if 1 <= snum <= 3:
+        cycUp = (16, 31, 1)[snum-1]  # Duty cycle = cycUp/CycTot
+        pio = (pioProg1, pioProg2, pioProg3)[snum-1]
+        pino = Pin(W_out_Pin, Pin.OUT)
+        sm = StateMachine(snum, pio, freq=SMFreq, set_base=pino)
+        return sm, cycUp
+    else:
+        print('Invalid snum {snum}');  sys.exit()
 #--------------------------------------------------------
 @micropython.native
 def takeReadings(wsm, cycUp, waveRatio, counterFreq):
@@ -153,7 +161,10 @@ def takeReadings(wsm, cycUp, waveRatio, counterFreq):
     csm = StateMachine(0, counter, freq=counterFreq, jmp_pin=pini)
     sleep_us(50000) # Let system settle
     wsm.active(1)   # Start wave-making state machine
-    csm.active(1)   # Start the counter
+    # Wait for high level of wave before starting counter.  We don't
+    # have enough PIO SM instruction words to check this in csm.
+    while pini.value()==0: pass
+    csm.active(1)   # Start the counter; it will sync on first falling edge
     KBuf=const(8)
     i = 0;   xprev = 0; skips = 0; ks = 0;  ka = [0]*2*KBuf
     t0 = ticks_us()
@@ -171,7 +182,7 @@ def takeReadings(wsm, cycUp, waveRatio, counterFreq):
         if   mark==GRise:  hentry(d, baseGR, histGR)
         elif mark==GFall:  hentry(d, baseGF, histGF)
     t1 = ticks_us()
-    wsm.active(1)     # Stop wave-making SM
+    wsm.active(0)     # Stop wave-making SM
     csm.active(0)     # Stop counter SM
     #print(f'{ka=}')
     # Find min & max ups or downs
@@ -212,7 +223,7 @@ def main():
     waveSeconds = (NEdges/2.0)/WaveFreq
     print(f'System frequency  = {freq():9} Hz, {1e9/freq():9.2f} ns')
     print(f'Counts per second = {countSMFreq//2:9} Hz, {nsPerCount:9.2f} ns')
-    print(f'  Wave frequency  = {WaveFreq:9} Hz, {nsPerWave:9.2f} ns')
+    print(f'  Wave frequency  = {WaveFreq:9} Hz, {nsPerWave:9.2f} ns  from SM freq {SMFreq}')
     print(f'About to get {NEdges} edges in {waveSeconds:3.1f} sec. with wave type {waveType}')
     waveRatio = (countSMFreq/WaveFreq)/2   # counter counts per wave-cycle
     sm, cycUp = makeSMwave(waveType)  # Make wave state machine
@@ -237,9 +248,11 @@ def main():
     kfb=[ka[j+1] for j in range(0,KBuf,2) if ka[j]==GFall]
     kfe=[ka[j+1] for j in range(KBuf,2*KBuf,2) if ka[j]==GFall]
     print(f'{krb=} {kre=}  {kfb=}  {kfe=}')
-    krn = kre[-1]-krb[0];  kfn = kfe[-1]-kfb[0]
-    print(f'{krn=}  krn/nomCy: {krn/waveRatio:4.6f}   {kfn=}  kfn/nomCy: {kfn/waveRatio:4.6f}')
-    print(f'')
+    krn = kre[-1]-krb[0];  kfn = kfe[-1]-kfb[1] # don't like kfb[0]
+    print(f'{krn=}   krn/nomCy: {krn/waveRatio:4.6f}   krn%|nomCy|: {krn%int(waveRatio)}')
+    print(f'{kfn=}   kfn/nomCy: {kfn/waveRatio:4.6f}   kfn%|nomCy|: {kfn%int(waveRatio)}')
+    #print(f'{CycTot=} {CycUp+CycDn=} {CycUp=} {CycDn=}  {CycOut=}  {SMFreq=}')
     #==========================================================
 if __name__ == "__main__":
+    freq(SysFreq); freq(SysFreq) # Set system frequency as desired
     main()
