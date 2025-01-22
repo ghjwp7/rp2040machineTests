@@ -116,8 +116,7 @@ by about 14.3 seconds as the program collected data.  In the GR: and
 GF: Histogram Result lines, one rising-edge count was some value at or
 below 4996.  In single-value bins (vs ranges), count 5045 appeared
 161015 times, 5046 10734 times, and so forth.  Other output fields are
-explained in the following table.  Note, ignore nomCy values below shown
-as NA (due to error in old code).
+explained in the following table.
 
 ========================  ================  =========================================
 Field Name                Example Value         Purpose
@@ -136,6 +135,8 @@ total nom                  5209             Sum of noms -- GR nom + GF nom
 Total average less edges   5208.3125        Sum of avle values
 nomCy                      5208.333         Actual expected counts per wave cycle
 ========================  ================  =========================================
+
+Note, ignore any nomCy values below shown as NA (due to former code error).
 
 to do: 1,  with small buffer + circ buffer save
 first 8 & last 8 words, to get better comparison of Counted time vs

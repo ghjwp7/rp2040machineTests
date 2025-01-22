@@ -10,12 +10,13 @@
 #  input pin 12.  Unlike 8a, 8b doesn't use SSD1306 display.
 
 #  Besides ordinary square waves for testing, this code can produce
-#  noise-simulation sequences, eg with a spike at the front or the
-#  end.  Spikes are eg 20 cycles long, separated from main pulses by
-#  eg 40 cycles, which should cause pulseTiming code to report noise.
-#  To select, set waveType to 2 or 3 instead of 1.  A later version
-#  will cycle thru all wave types, in phases that also have different
-#  ratios of counter sm clock to wave sm clock.
+#  waves with 3% or 97% duty cycles, which were intended as
+#  noise-simulation sequences, like with a spike at the front or the
+#  end.  An earlier version of pulseTiming code has some noise
+#  detection code, discarded in this version to simplify getting a
+#  working program.  To select different duty cycles, set waveType to
+#  1, 2, or 3.  A later version could cycle thru all wave types, in
+#  phases that also change wave frequency.  Not a priority item.
 
 from machine import freq, Pin
 from rp2     import PIO, asm_pio, StateMachine
@@ -79,7 +80,7 @@ def counter():
     jmp(x_dec, 'c'); label('c') # Do catch-up x_dec's
     jmp(x_dec, 'd'); label('d')
     jmp(x_dec, 'e'); label('e')
-    #jmp(x_dec, 'f'); label('f')
+    #jmp(x_dec, 'f'); label('f') # was one too many ?
     #---------------Await rising edge-----------------------
     label("waitHi")            # Loop: a
     jmp(pin, "HaveHi")           # Got a rising edge?
@@ -115,18 +116,18 @@ def takeReadings(wsm, cycUp, waveRatio, counterFreq):
     nomCycles = round(waveRatio*CycTot)
     nomUpCy = round(cycUp*waveRatio/CycTot)   # ~ Up cycles
     nomDnCy = round(cycDown*waveRatio/CycTot) # ~ Down cycles
-    #print(f'takeReadings:  {nomCycles=}  {nomUpCy=}  {nomDnCy=}')
-    hsize = 13
+
+    hsize = 13            # Number of histogram bins to maintain
     m = hsize//2;  e = hsize-1
-    def bounds(nomcy):     # Make set of bin limits, centered at nomcy
+    def bounds(nomcy):    # Make set of bin limits, centered at nomcy
         ba = [nomcy]*hsize; 
         for j, d in enumerate((1, 2, 5, 10, 20, 50)):
             ba[m+1+j] = nomcy+d
-            ba[m-1-j] = nomcy-d
+            ba[m-1-j] = nomcy-d # Center the set of bins at nominal count
         #print(f'{nomcy=}  {ba=}')
-        return ba          # Return the set of limits
+        return ba          # Return the list of bin limits
 
-    #d=value, b=bin limits, h=bins.  Increment the bin the value's in. 
+    #d=value, b=bin limits, h=bins.  Increment the bin that d belongs to. 
     def hentry(d, b, h):
         if   d== b[m]:     h[m] += 1
         elif d < b[m]:
@@ -174,16 +175,11 @@ def takeReadings(wsm, cycUp, waveRatio, counterFreq):
 def shoHisto(hist, base, waveRatio):
     print(f'{'Histogram Results':^60}')
     hsize = len(hist[0]);  m = hsize//2;  e = hsize-1
-    midk = (m-1,m,m+1)
-    tcav = tnom = 0
     trav = rnom = 0
     for j in (0,1):
         label = ('GR','GF')[j]
         hj, bj = hist[j], base[j]
         if sum(hj) == 0: continue # Skip over if no counts in bin
-        msum = max(1, sum(hj[k] for k in midk)) # pseudo-check 0
-        cav = sum(hj[k]*bj[k] for k in midk)/msum
-        tcav += cav;  tnom += bj[m]
         rsum = max(1, sum(hj[k] for k in range(1,e)))
         rav = sum(hj[k]*bj[k] for k in range(1,e))/rsum
         trav += rav;  rnom += bj[m] # wha rnom?
