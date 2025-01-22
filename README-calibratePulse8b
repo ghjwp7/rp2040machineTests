@@ -1,0 +1,236 @@
+.. -*- mode: rst -*-  #  Readme for calibratePulse8 - jiw - Jan 2025
+..  Use `restview <fn>` to view `<fn>` in html in browser
+..  Browser page will update whenever a changed version is stored.
+
+==================================================
+PIO pulse measurement calibration program 8b
+==================================================
+
+**Context:** For a pulse-timing application in a different repo,
+signals recur in a series of 0.1 second windows, with dozens of pulses
+per window and pulse widths ranging from around 8 us up to about 80
+us.  `calibratePulse8` is a test demo of one technique for timing
+edges of pulses.  When properly set up, and if signal conditioning is
+good enough, the mechanisms used here may allow an RP2040 to time 4
+independent signal sets of pulse edges at a resolution of 2
+system-clock cycles.
+
+Note, 8b testing requires a jumper between two pins that are selected
+via declarations like ``W_out_Pin=const(13)`` and
+``C_in_Pin=const(12)).``
+
+At present, `calibratePulse8` handles data from the PIO fifo on the
+fly.  It would be better if data were handled via a good-sized
+buffers, rather than a small fifo, to allow more time leeway when
+bursty pulse sequences occur.  At some point, if noise or other
+factors necessitate more-elaborate data processing, it may be
+necessary to apply ``@micropython.viper`` instead of
+``@micropython.native`` to time-critical processing.  Both of those
+decorators compile python code to native machine code.  Viper is
+faster but requires typing etc.  Code as of 21 Jan 2025 can keep up
+with analyzing a 12 kHz signal, but stumbles at 13 KHz.
+
+Future:  Use DMA storage buffers + 2 CPUs
+
+
+How the counter works
+---------------------------
+
+**Overall view:** An RP2040 PIO state machine is used to poll a pin
+while decrementing a counter.  When an edge change occurs, the counter
+and an edge-polarity mark-code are stored.  Storing the counter takes
+up a few cycles, during which the counter doesn't decrement.  However,
+PIO code uses extra `jmp(x_dec...)` operations to make up for that gap.
+
+**Details:** The state machine has two sections, similar in form.  One
+looks for rising edges, the other for falling edges, in spin loops
+that take two state machine cycles and decrement the SM x register by
+1 during each loop.  This makes a 2-machine-cycles-per-count counter.
+As noted, extra x-decrements are used after each store to make up
+counts that are lost during the store.
+
+The pin test available in a PIO state machine does a jump if a pin is
+set.  Thus, the rising-edge spin loop tests a pin, and if it's set,
+jumps to the next phase, else falls into the decrement-x jump that
+closes the spin loop.  On the other hand, the falling-edge spin loop
+does a decrement-x first, then uses a pin-test jump to close the spin
+loop.
+
+Whenever an edge change is detected, the state machine stores a
+two-word data packet, with a mark-code for rising or falling in the
+first word and a counter value in the second.
+
+==========  ============================================  =======
+Mark Code      What this Mark-Code denotes                 Value
+==========  ============================================  =======
+GRise        Good-rising-edge packet                         0
+GFall        Good-falling-edge packet                        1
+GStart       Ignore-this-packet                              2
+==========  ============================================  =======
+
+After ``takeReadings()`` finishes, ``main()`` displays a summary
+report and calls ``shoHisto()`` to print out histogram data that was
+accumulated during the readings phase.  From ``shoHisto()`` output,
+one can determine how many pulses were measured as being in their
+expected time ranges.
+
+**What takeReadings() does** -- This routine begins by creating lists
+of histogram-bin limits, and zeroing counts in bins.  Next, it has a
+data collection loop headed by: ``while i < NEdges:``.  In the loop,
+statements ``mark = csm.get()`` and ``xlast = csm.get()`` do blocking
+reads from the counter's fifo.  The first of those reads is followed
+by a loop that keeps reading if ``mark`` isn't a GRise or GFall value.
+Each extra read counts as a skip (but not as an edge).  One skip is
+expected at start of process.  Once an ok mark and value are
+available, ``d = xlast - xprev; xprev = xlast`` computes ``d``, which
+is the time in counts since previous edge detection.  Finally, a
+histogram bin for value ``d`` is located and incremented.
+
+When enough edges have been processed, ``takeReadings()`` returns its
+accumulated data to ``main()``, which as noted above calls
+``shoHisto()`` to print it out.  See following output, with comments
+after.
+
+Output - 343500 edges, 12 KHz wave frequency
+--------------------------------------------
+::
+
+  Making state machine instances
+  System frequency  = 125000000 Hz,      8.00 ns
+  Counts per second =  62500000 Hz,     16.00 ns
+    Wave frequency  =     12000 Hz,  83333.34 ns
+  About to get 343500 edges in 14.3 sec. with wave type 3
+  Processed 343500 items with 2 skips in 14.312506 sec
+  
+  Clock time     14312506 us    Clock-count total diff    66.000 us
+  Counted time   14312440.000 us  Clock-count avg diff     0.192 ns
+  Predicted time 14312500.000 us     less counted time    60.000 us
+  
+                       Histogram Results                      
+  171750 GR:   5046 nom,  5045.0625 avle    ≤4996: 1  =5045: 161015  =5046: 10734  
+  171750 GF:    163 nom,   163.2500 avle    =163: 128812  =164: 42938  
+  Total average (less edges) =  5208.3125, nomCy 166667, total nom 5209
+
+Above, the "About to get..." and "Processed..." lines were separated
+by about 14.3 seconds as the program collected data.  In the GR: and
+GF: Histogram Result lines, one rising-edge count was some value at or
+below 4996.  In single-value bins (vs ranges), count 5045 appeared
+161015 times, 5046 10734 times, and so forth.  Other output fields are
+explained in the following table.  Note, ignore nomCy value.
+
+========================  ================  =========================================
+Field Name                Example Value         Purpose
+========================  ================  =========================================
+Clock time                 14312506 us      t1-t0, ``ticks_us()`` readings around loop
+Clock-count total diff     66.000 us        Clock time minus Counted time
+Counted time               14312440.000 us  (Last count)*(microseconds per count)
+Clock-count avg diff       0.192 ns         (Clock-count total diff)/(number of items)
+Predicted time             14312500.000 us  (Number of edges)*(wave period)
+less counted time          60.000 us        Predicted time minus Counted time
+GR:                                         Histogram data for rising edge times
+GF:                                         Histogram data for falling edge times
+nom                        5046 nom         Number of counts expected for phase of wave
+avle                       5045.0625 avle   Average based on histo data, less extremes
+total nom                  5209             Sum of noms -- GR nom + GF nom
+Total average less edges   5208.3125        Sum of avle values
+nomCy                      166667           ?
+========================  ================  =========================================
+
+to do: 1, fix nomCy calc.  2, with small buffer + circ buffer save
+first 8 & last 8 words, to get better comparison of Counted time vs
+Predicted time
+
+343600 vs 344000 edges
+---------------------------------------------
+
+The next two outputs are from runs that captured 343600 and 344000
+edges, respectively, the former running just fine, the latter not.
+
+The first run detected 171800 rising and falling edges each, totalling
+343600 edges, as expected. 171799 edges were in the main bins of
+histogram results, ie 6054 counts for down time and 196 counts for up
+time, with one rising edge count 50 or more away from the main bin.
+
+The second run detected 344000 edges, as expected, but somehow counted
+10 more rising than falling edges.  This is due to an unexplained
+problem in the code or processing method.  64 skips occurred in
+processing; that is, 64 times when a GRise or GFall mark code was
+expected, something else occurred, indicating fifo might have filled
+or something else happened.  This may be due to an unexplained problem
+in the code.  Note, 10000*2**32/125000000 ~ 343597.38, where
+10000 is wave frequency, 32 is register size, and 125000000 is the
+system frequency the test ran at, and some overflow still to be found
+may be occurring somewhere in the code.
+
+::
+
+  Making state machine instances
+  System frequency  = 125000000 Hz,      8.00 ns
+  Counts per second =  62500000 Hz,     16.00 ns
+    Wave frequency  =     10000 Hz, 100000.00 ns
+  About to get 343600 edges in 17.2 sec. with wave type 3
+  Processed 343600 items with 2 skips in 17.180216 sec
+  
+  Clock time     17180217 us    Clock-count total diff   218.000 us
+  Counted time   17179998.000 us  Clock-count avg diff     0.634 ns
+  Predicted time 17180000.000 us     less counted time     2.000 us
+  
+                       Histogram Results                      
+  171800 GR:   6055 nom,  6054.0000 avle    ≤6005: 1  =6054: 171799  
+  171800 GF:    195 nom,   196.0000 avle    =196: 171800  
+  Total average (less edges) =  6250.0000, nomCy 200000, total nom 6250
+
+
+  Making state machine instances
+  System frequency  = 125000000 Hz,      8.00 ns
+  Counts per second =  62500000 Hz,     16.00 ns
+    Wave frequency  =     10000 Hz, 100000.00 ns
+  About to get 344000 edges in 17.2 sec. with wave type 3
+  Processed 344000 items with 64 skips in 17.206940 sec
+  
+  Clock time     17206939 us    Clock-count total diff   244.000 us
+  Counted time   17206696.000 us  Clock-count avg diff     0.709 ns
+  Predicted time 17200000.000 us     less counted time -6696.000 us
+  
+                       Histogram Results                      
+  172005 GR:   6055 nom,  6055.0000 avle    ≤6005: 1  =6055: 171933  ≥6105: 71
+  171995 GF:    195 nom,   195.0000 avle    ≤145: 62  =195: 171905  ≥245: 28
+  Total average (less edges) =  6250.0000, nomCy 200000, total nom 6250
+
+200 MHz system clock run
+---------------------------------------------
+
+In the thonny shell window, I issued commands to change RP2040
+frequency to 200 MHz: ``from machine import freq; freq(200000000);
+freq()``, which displayed 200000000.  Then, running 8b gave::
+
+  Making state machine instances
+  System frequency  = 200000000 Hz,      5.00 ns
+  Counts per second = 100000000 Hz,     10.00 ns
+    Wave frequency  =     10000 Hz, 100000.00 ns
+  About to get 343500 edges in 17.2 sec. with wave type 3
+  Processed 343500 items with 2 skips in 17.364033 sec
+  
+  Clock time     17364033 us    Clock-count total diff    32.000 us
+  Counted time   17364000.000 us  Clock-count avg diff     0.093 ns
+  Predicted time 17175000.000 us     less counted time -189000.000 us
+  
+                       Histogram Results                      
+  171751 GR:   9688 nom,  9687.0000 avle    ≤9638: 1  =9687: 171715  ≥9738: 35
+  171749 GF:    312 nom,   313.0000 avle    ≤262: 1  =313: 171748  
+  Total average (less edges) = 10000.0000, nomCy 320000, total nom 10000
+
+Note different rising and falling edge counts, and 36 rising-edge
+entries more than 50 counts away from expected count (nominally 9688).
+
+
+----------------------
+
+Note, code tests were on an RP2040 running MicroPython v1.25.0, via
+Thonny 3.3.14 IDE on an ubuntu.22.04 Linux system.  ::
+
+    MicroPython v1.25.0-preview.160.gc73204128 on 2024-12-30; Raspberry Pi Pico with RP2040
+    Type "help()" for more information.
+    >>> 
+
+jiw - 21 Jan 2025
