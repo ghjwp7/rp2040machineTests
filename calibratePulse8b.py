@@ -24,7 +24,7 @@ from utime   import sleep_us, ticks_us
 # =const()  # from machine import freq; freq(000000); freq()
 #-----------------------------------------------------------
 NEdges=const(100000)    # Number of wave edges we'll observe
-WaveFreq=const(10000)  # Desired wave rate from wave state machine
+WaveFreq=const(7457)  # Desired wave rate from wave state machine
 CycTot=const(32)       # State-machine step per wave cycle
 SMFreq=const(WaveFreq*CycTot) # Step-frequency of wave SM
 W_out_Pin=const(13)

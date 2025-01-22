@@ -142,7 +142,7 @@ to do: with small buffer + circ buffer save first 8 & last 8 words, to
 get better comparison of Counted time vs Predicted time.  Data
 collection for this is in code now.  Analysis is clunky at moment.
 Example of current crude output for this feature is last 3 lines of
-following, with ratios in last line indicating cycle-exact pulse timing::
+following::
 
   Making state machine instances
   System frequency  = 125000000 Hz,      8.00 ns
