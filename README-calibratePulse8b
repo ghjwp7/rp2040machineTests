@@ -21,7 +21,7 @@ via declarations like ``W_out_Pin=const(13)`` and
 ``C_in_Pin=const(12)).``
 
 Note!  This version may have system frequency specified at other than
-125 MHz, eg 120 or 180.  See line like ``SysFreq=const(180000000)``
+125 MHz, eg 120 or 180.   See line like ``SysFreq=const(180000000)``
 
 
 At present, `calibratePulse8` handles data from the PIO fifo on the

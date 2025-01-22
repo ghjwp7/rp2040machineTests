@@ -44,7 +44,7 @@ GStart=const(2)        # Data item = unused item
 def counter():
     set(y, GFall)             # We await a falling edge
     mov(x, invert(y))         # Start x at ~0
-    #label('0'); jmp(pin, "1") # Wait for high level
+    #label('0'); jmp(pin, "1") # Wait for high level.
     #jmp('0')    # This loop out due to OSError: [Errno 12] ENOMEM
     label('1'); jmp(pin, "1") # Wait for low level, then fall thru
     wrap_target()
