@@ -23,8 +23,8 @@ from rp2     import PIO, asm_pio, StateMachine
 from utime   import sleep_us, ticks_us
 # =const()  # from machine import freq; freq(000000); freq()
 #-----------------------------------------------------------
-NEdges=const(34360)    # Number of wave edges we'll observe
-WaveFreq=const(12000)  # Desired wave rate from wave state machine
+NEdges=const(100000)    # Number of wave edges we'll observe
+WaveFreq=const(10000)  # Desired wave rate from wave state machine
 CycTot=const(32)       # State-machine step per wave cycle
 SMFreq=const(WaveFreq*CycTot) # Step-frequency of wave SM
 W_out_Pin=const(13)
@@ -154,7 +154,8 @@ def takeReadings(wsm, cycUp, waveRatio, counterFreq):
     sleep_us(50000) # Let system settle
     wsm.active(1)   # Start wave-making state machine
     csm.active(1)   # Start the counter
-    i = 0;   xprev = 0; skips = 0
+    KBuf=const(8)
+    i = 0;   xprev = 0; skips = 0; ks = 0;  ka = [0]*2*KBuf
     t0 = ticks_us()
     while i < NEdges:
         mark = csm.get()
@@ -164,13 +165,18 @@ def takeReadings(wsm, cycUp, waveRatio, counterFreq):
         i += 1
         xlast = csm.get()
         d = xlast - xprev;   xprev = xlast
+        ka[ks], ka[ks+1] = mark, xlast # Keep some entries from ends
+        ks = ks+2 if ks+2 < 2*KBuf else KBuf
         # Make histogram entry
         if   mark==GRise:  hentry(d, baseGR, histGR)
         elif mark==GFall:  hentry(d, baseGF, histGF)
     t1 = ticks_us()
     wsm.active(1)     # Stop wave-making SM
     csm.active(0)     # Stop counter SM
-    return (histGR,histGF), (baseGR,baseGF,), xlast, skips, t0, t1
+    #print(f'{ka=}')
+    # Find min & max ups or downs
+    
+    return (histGR,histGF), (baseGR,baseGF,), xlast, skips, t0, t1, ka
 #--------------------------------------------------------
 def shoHisto(hist, base, waveRatio):
     print(f'{'Histogram Results':^60}')
@@ -211,7 +217,7 @@ def main():
     waveRatio = (countSMFreq/WaveFreq)/2   # counter counts per wave-cycle
     sm, cycUp = makeSMwave(waveType)  # Make wave state machine
     r = takeReadings(sm, cycUp, waveRatio, countSMFreq)
-    histos, bases, xlast, skips, t0, t1 = r
+    histos, bases, xlast, skips, t0, t1, ka = r
     nitems = sum(sum(h) for h in histos)
     td = t1-t0;  tlast = nsPerCount*xlast/1000
     terr = 1000*(td-tlast)/nitems
@@ -223,6 +229,15 @@ def main():
     print(f'Predicted time {1e6*waveSeconds:12.3f} us     less counted time {pt_tl:9.3f} us\n')
 
     shoHisto(histos, bases, waveRatio)
+
+    print(f'{ka=}')
+    krb=[ka[j+1] for j in range(0,KBuf,2) if ka[j]==GRise]
+    kre=[ka[j+1] for j in range(KBuf,2*KBuf,2) if ka[j]==GRise]
+    kfb=[ka[j+1] for j in range(0,KBuf,2) if ka[j]==GFall]
+    kfe=[ka[j+1] for j in range(KBuf,2*KBuf,2) if ka[j]==GFall]
+    print(f'{krb=} {kre=}  {kfb=}  {kfe=}')
+    krn = kre[-1]-krb[0];  kfn = kfe[-1]-kfb[0]
+    print(f'{krn=}  {krn/waveRatio=:4.6f}   {kfn=}  {kfn/waveRatio=:4.6f}')
     #==========================================================
 if __name__ == "__main__":
     main()

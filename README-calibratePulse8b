@@ -138,9 +138,34 @@ nomCy                      5208.333         Actual expected counts per wave cycl
 
 Note, ignore any nomCy values below shown as NA (due to former code error).
 
-to do: 1,  with small buffer + circ buffer save
-first 8 & last 8 words, to get better comparison of Counted time vs
-Predicted time
+to do: with small buffer + circ buffer save first 8 & last 8 words, to
+get better comparison of Counted time vs Predicted time.  Data
+collection for this is in code now.  Analysis is clunky at moment.
+Example of current crude output for this feature is last 3 lines of
+following, with ratios in last line indicating cycle-exact pulse timing::
+
+  Making state machine instances
+  System frequency  = 125000000 Hz,      8.00 ns
+  Counts per second =  62500000 Hz,     16.00 ns
+    Wave frequency  =     10000 Hz, 100000.00 ns
+  About to get 100000 edges in 5.0 sec. with wave type 3
+  Processed 100000 items with 2 skips in 5.000055 sec
+  
+  Clock time      5000055 us    Clock-count total diff    55.000 us
+  Counted time    5000000.000 us  Clock-count avg diff     0.550 ns
+  Predicted time  5000000.000 us     less counted time     0.000 us
+  
+                       Histogram Results                      
+   50000 GR:   6055 nom,  6054.0000 avle    (6045-6050]: 1  =6054: 49999  
+   50000 GF:    195 nom,   196.0000 avle    =196: 50000  
+  Total average (less edges) =  6250.0000, nomCy 6250.000, total nom 6250
+  ka=[0, 6049, 1, 6245, 0, 12299, 1, 12495, 0, 312493549, 1, 312493745, 0, 312499799, 1, 312499995]
+  krb=[6049, 12299] kre=[312493549, 312499799]  kfb=[6245, 12495]  kfe=[312493745, 312499995]
+  krn=312493750  krn/waveRatio=49999.000000   kfn=312493750  kfn/waveRatio=49999.000000
+
+
+
+
 
 343600 vs 344000 edges
 ---------------------------------------------
