@@ -20,9 +20,11 @@ Note, 8b testing requires a jumper between two pins that are selected
 via declarations like ``W_out_Pin=const(13)`` and
 ``C_in_Pin=const(12)).``
 
-Note!  This version may have system frequency specified at other than
-125 MHz, eg 120 or 180.   See line like ``SysFreq=const(180000000)``
-
+Note!  This version sets system frequency as specified in a line like
+``SysFreq=const(120000000)`` or ``SysFreq=const(180000000)``, ie, at
+other than 125 MHz.  Intent: Get nicer numbers for nominal counts, to
+make errors show up more obviously.  Also note: debug printing usually
+is commented out before commits but not necessarily always.
 
 At present, `calibratePulse8` handles data from the PIO fifo on the
 fly.  It would be better if data were handled via a good-sized
@@ -45,31 +47,39 @@ How the counter works
 while decrementing a counter.  When an edge change occurs, the counter
 and an edge-polarity mark-code are stored.  Storing the counter takes
 up a few cycles, during which the counter doesn't decrement.  However,
-PIO code uses extra `jmp(x_dec...)` operations to make up for that gap.
+PIO code uses extra decrement operations to make up for that gap.
 
-**Details:** The state machine has two sections, similar in form.  One
-looks for rising edges, the other for falling edges, in spin loops
-that take two state machine cycles and decrement the SM x register by
-1 during each loop.  This makes a 2-machine-cycles-per-count counter.
-As noted, extra x-decrements are used after each store to make up
-counts that are lost during the store.
-
-The pin test available in a PIO state machine does a jump if a pin is
-set.  Thus, the rising-edge spin loop tests a pin, and if it's set,
-jumps to the next phase, else falls into the decrement-x jump that
-closes the spin loop.  On the other hand, the falling-edge spin loop
-does a decrement-x first, then uses a pin-test jump to close the spin
-loop.
-
+**Details:** The state counter machine has two sections, similar in
+form.  One looks for rising edges, the other for falling edges, in
+spin loops that take two state machine cycles and decrement a register
+by 1 during each loop.  This makes a 2-machine-cycles-per-count
+counter, thus a 62.5 MHz count loop if system clock is 125 MHz.
 Whenever an edge change is detected, the state machine stores a
 two-word data packet, with a mark-code for rising or falling in the
 first word and a counter value in the second.
 
+The pin test available in a PIO State Machine does a jump if a pin is
+set.  The rising-edge spin-while-low loop tests a pin, and if it's
+set, jumps to store data, else falls into the decrement+jump that
+closes the spin loop.  On the other hand, the falling-edge
+spin-while-high loop does a decrement first, then uses a pin-test jump
+to close the spin loop.
+
+Move, set, and push operations to store mark words and values use ~ 11
+cycles per rising edge + falling edge sequence, hence 5.5 decrements
+get missed, which requires 11 extra decrements, because doing those
+decrements takes the additional time of 5.5 in-loop decrements.  In
+the code, five extra decrements are used after a rising-edge store,
+and six extra decrements after a falling-edge store.  This 5-6 split
+probably is technically correct.  Calibration program output shows
+that splits 7-4, 6-5, and 3-8 are incorrect, while 5-6 and 4-7 both
+work ok in tests at 6 KHz, 50% duty cycle.
+
 ==========  ============================================  =======
 Mark Code      What this Mark-Code denotes                 Value
 ==========  ============================================  =======
-GRise        Good-rising-edge packet                         0
-GFall        Good-falling-edge packet                        1
+GRise        Good-rising-edge packet                         1
+GFall        Good-falling-edge packet                        0
 GStart       Ignore-this-packet                              2
 ==========  ============================================  =======
 
@@ -81,15 +91,15 @@ expected time ranges.
 
 **What takeReadings() does** -- This routine begins by creating lists
 of histogram-bin limits, and zeroing counts in bins.  Next, it has a
-data collection loop headed by: ``while i < NEdges:``.  In the loop,
-statements ``mark = csm.get()`` and ``xlast = csm.get()`` do blocking
-reads from the counter's fifo.  The first of those reads is followed
-by a loop that keeps reading if ``mark`` isn't a GRise or GFall value.
-Each extra read counts as a skip (but not as an edge).  One skip is
-expected at start of process.  Once an ok mark and value are
-available, ``d = xlast - xprev; xprev = xlast`` computes ``d``, which
-is the time in counts since previous edge detection.  Finally, a
-histogram bin for value ``d`` is located and incremented.
+data collection loop headed by ``while i < NEdges:``.  In that
+``while`` loop, statements ``mark = csm.get()`` and ``xlast =
+csm.get()`` do blocking reads from the counter's fifo.  The first of
+those reads is followed by a loop that keeps reading if ``mark`` isn't
+a GRise or GFall value.  Each extra read counts as a skip (but not as
+an edge).  A skip may occur at start of process.  Once an ok mark and
+value are available, ``d = xlast - xprev; xprev = xlast`` computes
+``d``, which is the time in counts since previous edge detection.
+Finally, a histogram bin for value ``d`` is located and incremented.
 
 When enough edges have been processed, ``takeReadings()`` returns its
 accumulated data to ``main()``, which as noted above calls
@@ -143,18 +153,18 @@ nomCy                      5208.333         Actual expected counts per wave cycl
 
 Note, ignore any nomCy values below shown as NA (due to former code error).
 
-to do: have a dma with no read or write advance.  in=TIMELR, out=mem,
+**to do:** have a dma with no read or write advance.  in=TIMELR, out=mem,
 with irq to copy the mem word to small buffer + circ buffer.
   
-was to do, but doesn't help: have front loops in counter sm to wait
-for up, wait for down, jump to store falling edge, to synchronize that
-sm and simplify later analysis.  (but didn't sync ok?) Note, ran out
-of PIO words, so put the wait-for-high-level into main thread.
+**was to do**, but doesn't help: have front loops in counter sm to
+wait for up, wait for down, jump to store falling edge, to synchronize
+that sm and simplify later analysis.  (but didn't sync ok?) Note, ran
+out of PIO words, so put the wait-for-high-level into main thread.
 
-was to do, gives ok results, but needs work: with small buffer + circ
-buffer save first 8 & last 8 words, to get better comparison of
+**was to do**, gives ok results, but needs work: with small buffer +
+circ buffer save first 8 & last 8 words, to get better comparison of
 Counted time vs Predicted time.  Data collection for this is in code
-now.  Example of output for this feature is like last  lines of
+now.  Example of output for this feature is like last lines of
 following, which ran at 180 MHz::
 
   Making state machine instances
