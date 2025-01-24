@@ -57,7 +57,7 @@ GFall        Falling-edge packet                           0
 GRise        Rising-edge packet                            1
 ==========  ============================================  =======
 
-**Details:** The state counter machine has two parts, similar in form.
+**Details:** The counter State Machine has two parts, similar in form.
 One looks for rising edges, the other for falling edges, in spin loops
 that take two state machine cycles and decrement a register by 1
 during each loop.  This makes a 2-machine-cycles-per-count counter,
