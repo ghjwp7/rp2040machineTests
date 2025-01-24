@@ -68,7 +68,7 @@ in the first word and a counter value in the second.  Move, set, and
 push operations to store mark words and values use up several cycles
 per edge, during which the usual every-other-cycle decrements get
 missed.  This requires make-up decrements, as covered in more detail
-in section "Make-up Decrements Tests".
+in section "Make-up Decrements Notes".
 
 The pin test available in a PIO State Machine does a jump if a pin is
 set.  The rising-edge spin-while-low loop tests a pin, and if it's
@@ -271,71 +271,111 @@ entries more than 50 counts away from expected count (nominally 9688).
 ----------------------
 
 
-Make-up Decrements Tests
+Make-up Decrements Notes
 ----------------------------
 
-Move, set, and push operations to store mark words and values use ~ 11
-cycles per rising edge + falling edge sequence, hence 5.5 decrements
-get missed, which requires 11 extra decrements.  Of those 11 extra
-decrements, half are make-up decrements and half are keep-up
-decrements.  Test results shown below indicate that a 6-5 split is the
-best division of make-up decrements between falling- and rising-edge
-stores.
+When storing and make-up is going on, the counter is ignoring pin
+values -- that is, storage and make-up intervals are dead times, of
+about 11 system cycles (or 5.5 counter counts) per measured edge.  At
+a 125 MHz clock, that's about 88 ns.  Pulses shorter than that, or
+dropouts shorter than that, are likely to confuse the counter.
 
-These tests were run at system frequency of 120 MHz, with 50% duty
-cycle waves at frequencies 440, 500, 600, 700 Hz.  ``totGR`` is the
-total measured low signal and ``totGF`` is total measured high signal.
-When measuring is done correctly, these will differ by ``nomcy/2``
-because the test run presents the counter with half a cycle more of
-low signal than high signal.  ideally is equal to ``nomcy/2``.  Error
-statistic ``kerr`` is ``nomcy - 2*(totGR - totGF)``.  NE=number of
-edges measured. ::
+As just noted, move, set, and push operations to store mark words and
+values use 11 counter counts per rising edge + falling edge sequence.
+**Several points to discuss: 1,** in a series of extra decrement
+instructions to make up for missed counts, half make up for missed
+decrements, and half keep up with where the clock should be during the
+make up process.  **2,** it's possible to compensate for lost counting
+time in application code, and cut counter dead time in half.  **3,**
+the number of lost counts differs slightly between the rising edge and
+falling edge cases; as detailed later, attributing 6 counts to
+falling- and 5 to rising-edge make-up works well.
 
-   440  3-8  kerr= 23934  nomcy=136364 totGR=272721282 totGF=272665067 NE=8000 krn=545318168
-   440  4-7  kerr= 15930  nomcy=136364 totGR=272723283 totGF=272663066 NE=8000 krn=545318167
-   440  5-6  kerr=  7932  nomcy=136364 totGR=272725283 totGF=272661067 NE=8000 krn=545318168
-   440  6-5  kerr=   -68  nomcy=136364 totGR=272727283 totGF=272659067 NE=8000 krn=545318167
-   440  7-4  kerr= -7934  nomcy=136364 totGR=272729250 totGF=272657101 NE=8000 krn=545318168
-   440  8-3  kerr=-16062  nomcy=136364 totGR=272731282 totGF=272655069 NE=8000 krn=545318168
-   500  3-8  kerr= 31994  nomcy=120000 totGR=239992001 totGF=239947998 NE=8000 krn=479880000
-   500  4-7  kerr= 15996  nomcy=120000 totGR=239996001 totGF=239943999 NE=8000 krn=479880000
-   500  5-6  kerr= 15996  nomcy=120000 totGR=239996001 totGF=239943999 NE=8000 krn=479880000
-   500  6-5  kerr=    -2  nomcy=120000 totGR=240000001 totGF=239940000 NE=8000 krn=479880000
-   500  7-4  kerr=    -2  nomcy=120000 totGR=240000001 totGF=239940000 NE=8000 krn=479880000
-   500  8-3  kerr=-16000  nomcy=120000 totGR=240004001 totGF=239936001 NE=8000 krn=479880000
-   600  3-8  kerr= 31994  nomcy=100000 totGR=199992001 totGF=199957998 NE=8000 krn=399900000
-   600  4-7  kerr= 15996  nomcy=100000 totGR=199996001 totGF=199953999 NE=8000 krn=399900000
-   600  5-6  kerr= 15996  nomcy=100000 totGR=199996001 totGF=199953999 NE=8000 krn=399900000
-   600  6-5  kerr=    -2  nomcy=100000 totGR=200000001 totGF=199950000 NE=8000 krn=399900000
-   600  7-4  kerr=    -2  nomcy=100000 totGR=200000001 totGF=199950000 NE=8000 krn=399900000
-   600  8-3  kerr=-16000  nomcy=100000 totGR=200004001 totGF=199946001 NE=8000 krn=399900000
-   700  3-8  kerr= 23934  nomcy= 85714 totGR=171422532 totGF=171391642 NE=8000 krn=342771317
-   700  4-7  kerr= 16058  nomcy= 85714 totGR=171424501 totGF=171389673 NE=8000 krn=342771317
-   700  5-6  kerr=  8062  nomcy= 85714 totGR=171426500 totGF=171387674 NE=8000 krn=342771317
-   700  6-5  kerr=   -64  nomcy= 85714 totGR=171428532 totGF=171385643 NE=8000 krn=342771317
-   700  7-4  kerr= -8060  nomcy= 85714 totGR=171430531 totGF=171383644 NE=8000 krn=342771317
-   700  8-3  kerr=-16062  nomcy= 85714 totGR=171432532 totGF=171381644 NE=8000 krn=342771317
+Item **1** is fairly obvious; basically, if we miss 5.5 decrements per
+wave cycle we need 11 extra decrements per cycle, 5.5 to make up for
+missed decrements, and 5.5 to keep up with where the clock should be
+during the make up process.
 
-Note that ``kerr`` are, roughly, multiples of the number of edges
-tested, 8000.  Placing more decrements just after the falling-edge
-store will attribute more cycles to rising-edge totals, and vice
-versa.  For example, the progressions of ``kerr`` values for 440 and
-700 Hz are about 8000 * 3, 2, 1, 0, -1, -2 as we have 3, 4, 5, 6, 7, 8
-decrements (of 11 total) directly after the falling-edge store .
-However, for 500 and 600 Hz the progressions are like 8000 * 4, 2, 2,
-0, 0, -2.  Precisely what's happening isn't clear to me but I imagine
-that the "proper" division of decrements might be 6.5-4.5, so that 6-5
-and 7-4 are similar distances from correct.  But this notion doesn't
-explain 4-7 and 5-6 behaving alike at 500 and 600 Hz.
+For item **2,** note that the code that reads PIO counter results
+could maintain its own running-total cycle compensation count to add
+to each raw counter output.  The total updates with an edge-specific
+amount after each read.  An early version of the calibratePulse code
+used that approach, and also included a de-noise / de-bounce step with
+appropriate count compensation amounts for detected noise.  With noise
+testing, counter dead time lengthens substantially; without it,
+app-level compensation shortens dead time by about 44 ns per edge, at
+the cost of more-complex and more-time-consuming application code.
+
+
+For item **3,** test results shown below indicate that a 6-5 split is
+the best division of make-up decrements between falling- and
+rising-edge stores.  This is close to what manual inspection of the
+PIO code suggests.
+ 
+Tests to compare results at various splits were run using 50% duty
+cycle waves at frequencies 440, 500, 600, 700 Hz.  System frequency
+was set at 120 MHz with the idea of improving 500 and 600 Hz cycle
+accuracy.  In the test data, ``totGR`` represents the total measured
+low signal and ``totGF`` total measured high signal.  That is,
+``totGR`` is the sum of all the interval sizes before a rising edge,
+and ``totGF`` is the sum of all the interval sizes before a falling
+edge.
+
+When measuring is done correctly, and with an even number of edges,
+``totGR = totGF``; that is, low signal time equals high signal time,
+so their counts should be equal.  Error statistic ``kerr`` is
+``totGR - totGF``.  NE=number of edges measured (after the first). ::
+
+   440  3-8  kerr=-12030  nomcy=136364 totGR=272721251 totGF=272733281 NE=8000 krn=545318168
+   440  4-7  kerr= -8030  nomcy=136364 totGR=272723251 totGF=272731281 NE=8000 krn=545318167
+   440  5-6  kerr= -3966  nomcy=136364 totGR=272725283 totGF=272729249 NE=8000 krn=545318168
+   440  6-5  kerr=   -28  nomcy=136364 totGR=272727252 totGF=272727280 NE=8000 krn=545318167
+   440  7-4  kerr=  3968  nomcy=136364 totGR=272729250 totGF=272725282 NE=8000 krn=545318168
+   440  8-3  kerr=  8032  nomcy=136364 totGR=272731282 totGF=272723250 NE=8000 krn=545318168
+   500  3-8  kerr=-15999  nomcy=120000 totGR=239992001 totGF=240008000 NE=8000 krn=479880000
+   500  4-7  kerr= -7999  nomcy=120000 totGR=239996001 totGF=240004000 NE=8000 krn=479880000
+   500  5-6  kerr= -7999  nomcy=120000 totGR=239996001 totGF=240004000 NE=8000 krn=479880000
+   500  6-5  kerr=     1  nomcy=120000 totGR=240000001 totGF=240000000 NE=8000 krn=479880000
+   500  7-4  kerr=     1  nomcy=120000 totGR=240000001 totGF=240000000 NE=8000 krn=479880000
+   500  8-3  kerr=  8001  nomcy=120000 totGR=240004001 totGF=239996000 NE=8000 krn=479880000
+   600  3-8  kerr=-15999  nomcy=100000 totGR=199992001 totGF=200008000 NE=8000 krn=399900000
+   600  4-7  kerr= -7999  nomcy=100000 totGR=199996001 totGF=200004000 NE=8000 krn=399900000
+   600  5-6  kerr= -7999  nomcy=100000 totGR=199996001 totGF=200004000 NE=8000 krn=399900000
+   600  6-5  kerr=     1  nomcy=100000 totGR=200000001 totGF=200000000 NE=8000 krn=399900000
+   600  7-4  kerr=     1  nomcy=100000 totGR=200000001 totGF=200000000 NE=8000 krn=399900000
+   600  8-3  kerr=  8001  nomcy=100000 totGR=200004001 totGF=199996000 NE=8000 krn=399900000
+   700  3-8  kerr=-11968  nomcy= 85714 totGR=171422532 totGF=171434500 NE=8000 krn=342771317
+   700  4-7  kerr= -7968  nomcy= 85714 totGR=171424532 totGF=171432500 NE=8000 krn=342771317
+   700  5-6  kerr= -4030  nomcy= 85714 totGR=171426501 totGF=171430531 NE=8000 krn=342771317
+   700  6-5  kerr=   -30  nomcy= 85714 totGR=171428501 totGF=171428531 NE=8000 krn=342771317
+   700  7-4  kerr=  4032  nomcy= 85714 totGR=171430532 totGF=171426500 NE=8000 krn=342771317
+   700  8-3  kerr=  8034  nomcy= 85714 totGR=171432533 totGF=171424499 NE=8000 krn=342771317
+
+Note that ``kerr`` values are, roughly, multiples of the number of
+cycles tested, ie 8000/2.  Placing more decrements just after the
+falling-edge store will attribute more cycles to rising-edge totals,
+and vice versa.  For example, the progressions of ``kerr`` values for
+440 and 700 Hz are about 4000 * -3, -2, -1, 0, 1, 2 as we have 3, 4,
+5, 6, 7, 8 decrements (of 11 total) directly after the falling-edge
+store.  For 500 and 600 Hz the progressions are like 4000 * -4, -2,
+-2, 0, 0, 2.  In the 440 and 700 Hz cases, clearly a 6-5 split is
+best, while in the 500 and 600 Hz cases, either of 6-5 or 7-4 is
+suitable.
+
+Precisely what's happening in the 500 and 600 Hz cases isn't clear to
+me but I imagine the "proper" division of decrements might be 6.5-4.5,
+so that 6-5 and 7-4 are similar distances from correct.  This notion
+doesn't explain 4-7 and 5-6 behaving alike at 500 and 600 Hz.
 
 Note, RP2040 square waves from simple PIOs for wave frequencies like
 440 and 700 are imperfect.  At frequent intervals, the wave state
 machine clock adds or drops a system cycle as dictated by the
 fractional-division state machine clock generator.  Thus, pulse widths
-at those frequencies vary (repeatably) plus or minus about 8
-nanoseconds, enough to make an occasional 1-count difference and
-enlarge ``kerr`` values.  On the other hand, variation of pulse widths
-for 500 and 600 Hz waves is probably on the order of picoseconds.
+at those frequencies vary (repeatably) by one system cycle, ie about 8
+nanoseconds, which is enough to make an occasional 1-count difference
+and enlarge ``kerr`` values.  On the other hand, variation of pulse
+widths for 500 and 600 Hz waves is probably on the order of
+picoseconds.
 
 Note, several more error-data tables appeared in earlier versions of
 this README.  Those are now obsolete...

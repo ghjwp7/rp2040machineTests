@@ -123,7 +123,7 @@ def takeReadings(wsm, cycHi, waveRatio, counterFreq, splitF):
     totGR = totGF = 0
     i = 0;   xprev = 0; skips = 0; ks = 0;  ka = [0]*2*KBuf
     t0 = ticks_us()
-    while i < NEdges:
+    while i <= NEdges:
         mark = csm.get()
         while mark >= GStart:
             mark = csm.get()    # Sync with a GR or GF
@@ -194,7 +194,7 @@ def showFRSplit(h, b, tGs, WaveFreq, DXF, DXR, krn, kfn):
     v = len(b[0])//2; nomcy = b[0][v]+b[1][v]
     totGR, totGF = tGs; tdelta = totGR-totGF;  kdelta = krn-kfn
     smark = '*' if rc==fc and rb==fb else ' '
-    kerr = nomcy-2*tdelta
+    kerr = tdelta  #kerr = nomcy-2*tdelta
     kmark = '*' if kerr<3 else '+' if kerr<31 else ' '
     #print(f'  {NEdges} {WaveFreq}  {DXF:}-{DXR}{smark} {krn=} {kfn=} knΔ={kdelta:6} {nomcy=:6}  totΔ={tdelta:<6}{kmark}  {totGR=}  {totGF=}')
     #print(f'  {NEdges} {WaveFreq}  {DXF:}-{DXR}{smark} {krn=} {kfn=} knΔ={kdelta:6} {nomcy=:6}  {totGR=} {totGF=}  {kerr=:<6}')
