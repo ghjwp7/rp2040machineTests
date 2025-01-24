@@ -322,7 +322,7 @@ state machine clock generator.  Thus, pulse widths at those
 frequencies may vary (fairly repeatably, see 331 Hz results) plus or
 minus about 8 nanoseconds, enough to push results into an adjacent
 histo bin.  Here are Histogram Results for representative 331 Hz
-runs at 7-4, 6-5, and 6-5 splits, which clearly indicate that 6-5 produces more-accurate results than 7-4::
+runs at 7-4, 6-5, and 6-5 splits; but table will be replaced RSN::
 
    350 GR:  90634 nom, 90634.9375 avle    =90634: 22  =90635: 327  [90636-90639): 1  
    350 GF:  90634 nom, 90633.9219 avle    ≤90584: 1  =90633: 25   =90634: 324  
