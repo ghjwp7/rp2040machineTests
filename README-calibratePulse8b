@@ -43,20 +43,32 @@ Future:  Use DMA storage buffers + 2 CPUs
 How the counter works
 ---------------------------
 
-**Overall view:** An RP2040 PIO state machine is used to poll a pin
-while decrementing a counter.  When an edge change occurs, the counter
-and an edge-polarity mark-code are stored.  Storing the counter takes
-up a few cycles, during which the counter doesn't decrement.  However,
-PIO code uses extra decrement operations to make up for that gap.
+**Overview:** An RP2040 PIO state machine is used to poll a pin while
+decrementing a counter.  When an edge change occurs, a two-word packet
+with counter value and an edge-polarity mark-code is stored.  Storing
+the counter takes up a few cycles, during which the counter doesn't
+decrement.  However, PIO code uses extra decrement operations to make
+up for that gap, as explained in a later section.
 
-**Details:** The state counter machine has two sections, similar in
-form.  One looks for rising edges, the other for falling edges, in
-spin loops that take two state machine cycles and decrement a register
-by 1 during each loop.  This makes a 2-machine-cycles-per-count
-counter, thus a 62.5 MHz count loop if system clock is 125 MHz.
-Whenever an edge change is detected, the state machine stores a
-two-word data packet, with a mark-code for rising or falling in the
-first word and a counter value in the second.
+==========  ============================================  =======
+Mark Code      Denotation                                 Value
+==========  ============================================  =======
+GFall        Falling-edge packet                           0
+GRise        Rising-edge packet                            1
+==========  ============================================  =======
+
+**Details:** The state counter machine has two parts, similar in form.
+One looks for rising edges, the other for falling edges, in spin loops
+that take two state machine cycles and decrement a register by 1
+during each loop.  This makes a 2-machine-cycles-per-count counter,
+thus a 62.5 MHz count loop if system clock is 125 MHz.  Whenever an
+edge change is detected, the state machine stores a two-word data
+packet, with a ``GRise`` or ``GFall`` mark-code for rising or falling
+in the first word and a counter value in the second.  Move, set, and
+push operations to store mark words and values use up several cycles
+per edge, during which the usual every-other-cycle decrements get
+missed.  This requires make-up decrements, as covered in more detail
+in section "Make-up Decrements Tests".
 
 The pin test available in a PIO State Machine does a jump if a pin is
 set.  The rising-edge spin-while-low loop tests a pin, and if it's
@@ -65,41 +77,25 @@ closes the spin loop.  On the other hand, the falling-edge
 spin-while-high loop does a decrement first, then uses a pin-test jump
 to close the spin loop.
 
-Move, set, and push operations to store mark words and values use ~ 11
-cycles per rising edge + falling edge sequence, hence 5.5 decrements
-get missed, which requires 11 extra decrements, because doing those
-decrements takes the additional time of 5.5 in-loop decrements.  In
-the code, five extra decrements are used after a rising-edge store,
-and six extra decrements after a falling-edge store.  This 5-6 split
-probably is technically correct.  Calibration program output shows
-that splits 7-4, 6-5, and 3-8 are incorrect, while 5-6 and 4-7 both
-work ok in tests at 6 KHz, 50% duty cycle.
-
-==========  ============================================  =======
-Mark Code      What this Mark-Code denotes                 Value
-==========  ============================================  =======
-GRise        Good-rising-edge packet                         1
-GFall        Good-falling-edge packet                        0
-GStart       Ignore-this-packet                              2
-==========  ============================================  =======
-
-After ``takeReadings()`` finishes, ``main()`` displays a summary
-report and calls ``shoHisto()`` to print out histogram data that was
-accumulated during the readings phase.  From ``shoHisto()`` output,
-one can determine how many pulses were measured as being in their
-expected time ranges.
+**What main() does** -- ``main()`` prints out setup info (eg, system
+frequency and wave frequency and duty); uses ``makeSMwave`` to set up
+the wave machine; calls ``takeReadings()`` to run test and collect
+data; displays summary report; and calls ``shoHisto()`` to print out
+histogram data that was accumulated during the readings phase.  The
+outputs show how many pulses were measured as in their expected time
+ranges.
 
 **What takeReadings() does** -- This routine begins by creating lists
 of histogram-bin limits, and zeroing counts in bins.  Next, it has a
 data collection loop headed by ``while i < NEdges:``.  In that
-``while`` loop, statements ``mark = csm.get()`` and ``xlast =
-csm.get()`` do blocking reads from the counter's fifo.  The first of
-those reads is followed by a loop that keeps reading if ``mark`` isn't
-a GRise or GFall value.  Each extra read counts as a skip (but not as
-an edge).  A skip may occur at start of process.  Once an ok mark and
-value are available, ``d = xlast - xprev; xprev = xlast`` computes
-``d``, which is the time in counts since previous edge detection.
-Finally, a histogram bin for value ``d`` is located and incremented.
+``while`` loop, statements ``mark = csm.get()`` and ``xlast = csm.get()``
+do blocking reads from the counter's fifo.  The first of those reads
+is followed by a loop that keeps reading if ``mark`` isn't a GRise or
+GFall value.  Each extra read counts as a skip (but not as an edge).
+A skip may occur at start of process.  Once an ok mark and value are
+available, ``d = xlast - xprev; xprev = xlast`` computes ``d``, which
+is the time in counts since previous edge detection.  Finally, a
+histogram bin for value ``d`` is located and incremented.
 
 When enough edges have been processed, ``takeReadings()`` returns its
 accumulated data to ``main()``, which as noted above calls
@@ -156,10 +152,13 @@ Note, ignore any nomCy values below shown as NA (due to former code error).
 **to do:** have a dma with no read or write advance.  in=TIMELR, out=mem,
 with irq to copy the mem word to small buffer + circ buffer.
   
-**was to do**, but doesn't help: have front loops in counter sm to
-wait for up, wait for down, jump to store falling edge, to synchronize
-that sm and simplify later analysis.  (but didn't sync ok?) Note, ran
-out of PIO words, so put the wait-for-high-level into main thread.
+**was to do**, now works ok: have front loops in counter sm to wait
+for up, wait for down, jump to store falling edge, to synchronize csm
+and make later analysis cleaner.  This didn't help at first, because
+the wait-for-high-level loop was in main thread, not PIO, and seemed
+to lose 50-70 cycles.  But moving the csm into PIO 1 -- rather than
+having csm and wsm in same PIO -- freed up a couple of words to allow
+wait-for-high-level loop to be in PIO as part of csm, which works well.
 
 **was to do**, gives ok results, but needs work: with small buffer +
 circ buffer save first 8 & last 8 words, to get better comparison of
@@ -185,9 +184,6 @@ following, which ran at 180 MHz::
   krb=[8430, 17430] kre=[89990430, 89999430]  kfb=[0, 8790]  kfe=[89981790, 89990790]
   krn=89991000   krn/nomCy: 9999.000000   krn%|nomCy|: 0
   kfn=89982000   kfn/nomCy: 9998.000000   kfn%|nomCy|: 0
-
-
-
 
 343600 vs 344000 edges
 ---------------------------------------------
@@ -272,6 +268,91 @@ freq()``, which displayed 200000000.  Then, running 8b gave::
 Note different rising and falling edge counts, and 36 rising-edge
 entries more than 50 counts away from expected count (nominally 9688).
 
+----------------------
+
+
+Make-up Decrements Tests
+----------------------------
+
+Move, set, and push operations to store mark words and values use ~ 11
+cycles per rising edge + falling edge sequence, hence 5.5 decrements
+get missed, which requires 11 extra decrements.  Of those 11 extra
+decrements, half are make-up decrements and half are keep-up
+decrements.  Test results like those shown below bear upon tuning
+the number of make-up decrements to use in the code, and how to
+proportion them between falling- or rising-edge stores.  These tests
+were run at system frequency = 120 MHz, wave frequency = 6000 and 6003
+Hz, with waves of 50% duty cycle, so we should have equal R and F
+Bins, and equal Counts.  * means unequal numbers.  A Bin number is a
+measured cycle-counter value.    An "R Count" or "F Count" is how many
+times the Bin value occurred during a test run.
+
+=========  ==========  ========  =========  ========  =========
+Wave Freq   FR Split    R Bin     R Count    F Bin     F Count
+=========  ==========  ========  =========  ========  =========
+   6000      4-7*        4999       6999      5001       6999
+   6000      5-6*        4999       6999      5001       6999
+   6000      6-5         5000       6999      5000       6999
+   6000      7-4         5000       6999      5000       6999
+   6000      8-3*        5001       6999      4999       6999
+---------  ----------  --------  ---------  --------  ---------
+---------  ----------  --------  ---------  --------  ---------
+   6003      4-7*        4996       6999      4999       6999
+   6003      5-6*        4997       6999      4998       6999
+   6003      6-5*        4997       6999      4998       6999
+   6003      7-4*        4998       6999      4997       6999
+   6003      8-3*        4998       6999      4997       6999
+=========  ==========  ========  =========  ========  =========
+
+The 6-5 split seems more likely than 7-4 to be technically correct --
+it is closer to manual counts of cycles used in the F, R cases than is
+7-4.  One way to know for sure would be use of a PIO SM simulator
+program.  However, the simulator I'm aware of takes C code rather than
+Python, so its use would entail translating some amount of 8b from
+Python into C. Not likely to happen.  A few other tests follow, all at
+system frequency = 120 MHz and waves of 50% duty cycle, at several
+wave frequencies, splits, and numbers of edges.  In some cases -- eg
+the 330 to 490 Hz lines -- results may mislead, because many counts
+(5-50%) were not in the main bin.  The histo lines for those runs show
+bin counts, but the simple tests in ``showFRSplit()`` don't properly
+cope.  Note, the square waves for wave frequencies like 330-333 and
+490 are imperfect; at frequent intervals, the wave state machine clock
+adds or drops a system cycle as dictated by the fractional-division
+state machine clock generator.  Thus, pulse widths at those
+frequencies may vary (fairly repeatably, see 331 Hz results) plus or
+minus about 8 nanoseconds, enough to push results into an adjacent
+histo bin.  Here are Histogram Results for representative 331 Hz
+runs at 7-4, 6-5, and 6-5 splits, which clearly indicate that 6-5 produces more-accurate results than 7-4::
+
+   350 GR:  90634 nom, 90634.9375 avle    =90634: 22  =90635: 327  [90636-90639): 1  
+   350 GF:  90634 nom, 90633.9219 avle    ≤90584: 1  =90633: 25   =90634: 324  
+
+   350 GR:  90634 nom, 90634.4375 avle    =90634: 199  =90635: 151  
+   350 GF:  90634 nom, 90634.4375 avle    ≤90584: 1  =90634: 196  =90635: 153  
+
+   350 GR:  90634 nom, 90634.4375 avle    =90634: 196  =90635: 154  
+   350 GF:  90634 nom, 90634.4297 avle    ≤90584: 1  =90634: 199  =90635: 150
+
+On the other hand, pulse widths for 500 Hz and 600 Hz have
+variation probably on the order of picoseconds.
+
+=========  ==========  ========  =========  ========  =========
+Wave Freq   FR Split    R Bin     R Count    F Bin     F Count
+=========  ==========  ========  =========  ========  =========
+    330      7-4*       90910        203     90909        203
+    331      7-4*       90635        324     90634        327
+    331      7-4*       90635        327     90634        324
+    331      7-4*       90635        327     90634        324
+    331      7-4*       90635        327     90634        324
+    331      7-4*       90635        327     90634        324
+    332      7-4*       90362        331     90361        329
+    333      7-4*       90091        198     90090        207
+    490      6-5        61224        184     61224        184
+    497      6-5*       60362        295     60362        286
+    500      6-5        60000        349     60000        349
+    600      6-5        50000        349     50000        349
+    600      7-4        50000        349     50000        349
+=========  ==========  ========  =========  ========  =========
 
 ----------------------
 

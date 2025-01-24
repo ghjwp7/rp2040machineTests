@@ -25,8 +25,10 @@ from utime   import sleep_us, ticks_us
 #-----------------------------------------------------------
 W_out_Pin=const(13)    # Wave SM output pin
 C_in_Pin=const(12)     # Counter input pin
-NEdges=const(10000)    # Number of wave edges we'll observe
-WaveFreq=const(6000)  # Desired wave rate from wave state machine
+NEdges=const(700)    # Number of wave edges we'll observe
+WaveFreq=const(331)  # Desired wave rate from wave state machine
+#WaveFreq=const(6003)  # Desired wave rate from wave state machine
+#WaveFreq=const(6000)  # Desired wave rate from wave state machine
 SysFreq=const(120000000) # Desired RP2040 system frequency
 # We need CycTot = 3+CycOut = 2+CycUp+CycDn
 CycTot=const(20)       # usually 32, but can set as desired
@@ -44,8 +46,8 @@ GStart=const(2)        # Data item = unused item
 def counter():
     set(y, GFall)             # We await a falling edge
     mov(x, invert(y))         # Start x at ~0
-    #label('0'); jmp(pin, "1") # Wait for high level.
-    #jmp('0')    # This loop out due to OSError: [Errno 12] ENOMEM
+    label('0'); jmp(pin, "1") # Wait for high level.
+    jmp('0')    # This loop out due to OSError: [Errno 12] ENOMEM
     label('1'); jmp(pin, "1") # Wait for low level, then fall thru
     wrap_target()
     #------------Save falling-edge time-------------------
@@ -55,6 +57,8 @@ def counter():
     push(noblock)             # Push falling-edge time
 
     #------------Do time catch-up for missed counts--------
+    DXF=const(6) # After falling edge, this bunch
+    DXR=const(11-DXF)
     jmp(x_dec, 'a'); label('a')
     jmp(x_dec, 'b'); label('b') # After falling edge,
     jmp(x_dec, 'c'); label('c') # Do catch-up x_dec's
@@ -163,12 +167,13 @@ def takeReadings(wsm, cycHi, waveRatio, counterFreq):
     baseGF = bounds(nomUpCy)
     # This section creates & activates csm and takes a set of readings
     pini = Pin(C_in_Pin, Pin.IN)  # Counter input pin
-    csm = StateMachine(0, counter, freq=counterFreq, jmp_pin=pini)
+    # Init. csm on PIO 1, with wsm on PIO 0, to allow more steps
+    csm = StateMachine(7, counter, freq=counterFreq, jmp_pin=pini)
     sleep_us(50000) # Let system settle
     wsm.active(1)   # Start wave-making state machine
-    # Wait for high level of wave before starting counter.  We don't
-    # have enough PIO SM instruction words to check this in csm.
-    while pini.value()==0: pass
+    ## Wait for high level of wave before starting counter.  We don't
+    ## have enough PIO SM instruction words to check this in csm.
+    #while pini.value()==0: pass
     csm.active(1)   # Start the counter; it will sync on first falling edge
     KBuf=const(8)
     i = 0;   xprev = 0; skips = 0; ks = 0;  ka = [0]*2*KBuf
@@ -219,6 +224,24 @@ def shoHisto(hist, base, waveRatio):
         #print(f'{rav=:10.4f}  {trav=:10.4f}  {rnom=}')
     print(f'Total average (less edges) = {trav:10.5f}, nomCy {waveRatio:7.5f}, total nom {rnom}')
 #--------------------------------------------------------
+# showFRSplit -- Make output to go into table of following form.
+# =========  ==========  ========  =========  ========  =========
+# Wave Freq   FR Split    R Bin     R Count    F Bin     F Count
+# =========  ==========  ========  =========  ========  =========
+#     6003     4-7  *      4998       4999      4997       4999
+# =========  ==========  ========  =========  ========  =========
+
+def showFRSplit(h, b):
+    # Get main entries from rising and falling histos and bases
+    #for h, b in zip(histos, bases): print(f'{h=}\n{b=} ')
+    def getMainCell(j):
+        m = max(h[j])
+        return m, b[j][h[j].index(m)]
+    rc, rb = getMainCell(0)
+    fc, fb = getMainCell(1)
+    mark = ' ' if rc==fc and rb==fb else '*'
+    print(f'{WaveFreq:7} {DXF:>6}-{DXR}{mark} {rb:11}{rc:11}{fb:10}{fc:11}')
+#--------------------------------------------------------
 def main():
     print("Making state machine instances")
     waveType = 1           # 1 = 50% up, 2 = 97% up, 3 = 3% up
@@ -231,8 +254,11 @@ def main():
     print(f'  Wave frequency  = {WaveFreq:9} Hz, {nsPerWave:9.2f} ns  from SM freq {SMFreq}')
     print(f'About to get {NEdges} edges in {waveSeconds:3.1f} sec. with wave type {waveType}')
     waveRatio = (countSMFreq/WaveFreq)/2   # counter counts per wave-cycle
+
     sm, cycUp = makeSMwave(waveType)  # Make wave state machine
-    r = takeReadings(sm, cycUp, waveRatio, countSMFreq)
+
+    r = takeReadings(sm,cycUp,waveRatio,countSMFreq) # Make counter, get data
+
     histos, bases, xlast, skips, t0, t1, ka = r
     nitems = sum(sum(h) for h in histos)
     td = t1-t0;  tlast = nsPerCount*xlast/1000
@@ -257,6 +283,8 @@ def main():
     print(f'{krn=}   krn/NE: {krn/NEdges:4.6f}   krn/nomCy: {krn/waveRatio:4.6f}   krn%|nomCy|: {krn%int(waveRatio)}')
     print(f'{kfn=}   kfn/NE: {kfn/NEdges:4.6f}   kfn/nomCy: {kfn/waveRatio:4.6f}   kfn%|nomCy|: {kfn%int(waveRatio)}')
     #print(f'{CycTot=} {CycUp+CycDn=} {CycUp=} {CycDn=}  {CycOut=}  {SMFreq=}')
+
+    showFRSplit(histos, bases)
     #==========================================================
 if __name__ == "__main__":
     freq(SysFreq); freq(SysFreq) # Set system frequency as desired
