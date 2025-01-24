@@ -88,14 +88,14 @@ ranges.
 **What takeReadings() does** -- This routine begins by creating lists
 of histogram-bin limits, and zeroing counts in bins.  Next, it has a
 data collection loop headed by ``while i < NEdges:``.  In that
-``while`` loop, statements ``mark = csm.get()`` and ``xlast = csm.get()``
-do blocking reads from the counter's fifo.  The first of those reads
-is followed by a loop that keeps reading if ``mark`` isn't a GRise or
-GFall value.  Each extra read counts as a skip (but not as an edge).
-A skip may occur at start of process.  Once an ok mark and value are
-available, ``d = xlast - xprev; xprev = xlast`` computes ``d``, which
-is the time in counts since previous edge detection.  Finally, a
-histogram bin for value ``d`` is located and incremented.
+``while`` loop, statements ``mark = csm.get()`` and ``xlast =
+csm.get()`` do blocking reads from the counter's fifo.  The first of
+those reads is followed by a loop that keeps reading if ``mark`` isn't
+a GRise or GFall value.  Each extra read counts as a skip (but not as
+an edge).  Once an ok mark and value are available, ``d = xlast -
+xprev; xprev = xlast`` computes ``d``, which is the time in counts
+since previous edge detection.  Finally, a histogram bin for value
+``d`` is located and incremented.
 
 When enough edges have been processed, ``takeReadings()`` returns its
 accumulated data to ``main()``, which as noted above calls
@@ -324,7 +324,9 @@ edge.
 When measuring is done correctly, and with an even number of edges,
 ``totGR = totGF``; that is, low signal time equals high signal time,
 so their counts should be equal.  Error statistic ``kerr`` is
-``totGR - totGF``.  NE=number of edges measured (after the first). ::
+``totGR - totGF``.  NE=number of edges measured (after the first).
+``krn`` = counts difference between last rising edge and first rising
+edge. ::
 
    440  3-8  kerr=-12030  nomcy=136364 totGR=272721251 totGF=272733281 NE=8000 krn=545318168
    440  4-7  kerr= -8030  nomcy=136364 totGR=272723251 totGF=272731281 NE=8000 krn=545318167
