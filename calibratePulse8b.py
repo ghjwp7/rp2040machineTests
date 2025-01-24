@@ -26,7 +26,7 @@ from utime   import sleep_us, ticks_us
 #-----------------------------------------------------------
 W_out_Pin=const(13)    # Wave SM output pin
 C_in_Pin=const(12)     # Counter input pin
-NEdges=const(902)    # Number of wave edges we'll observe
+NEdges=const(8000)    # Number of wave edges we'll observe
 #WaveFreq=const(331)  # Desired wave rate from wave state machine
 SysFreq=const(120000000) # Desired RP2040 system frequency
 # We need CycTot = 3+CycOut = 2+CycUp+CycDn
@@ -111,7 +111,7 @@ def takeReadings(wsm, cycHi, waveRatio, counterFreq, splitF):
     # This section creates & activates csm and takes a set of readings
     pini = Pin(C_in_Pin, Pin.IN)  # Counter input pin
     # Init. csm on PIO 1, with wsm on PIO 0, to allow more steps
-    csmPIO = makeCounter(6)
+    csmPIO = makeCounter(splitF)
     csm = StateMachine(7, csmPIO, freq=counterFreq, jmp_pin=pini)
     sleep_us(50000) # Let system settle
     wsm.active(1)   # Start wave-making state machine
@@ -141,9 +141,12 @@ def takeReadings(wsm, cycHi, waveRatio, counterFreq, splitF):
     t1 = ticks_us()
     wsm.active(0)     # Stop wave-making SM
     csm.active(0)     # Stop counter SM
-    #print(f'{ka=}')
-    # Find min & max ups or downs
     
+    # Clear all programs in both PIOs, to avoid later [Errno 12] ENOMEM OSError
+    for j in (0,1):
+        p = PIO(j)
+        PIO.remove_program(p)
+
     return (histGR,histGF), (baseGR,baseGF), (totGR,totGF), xlast, skips, t0, t1, ka
 #--------------------------------------------------------
 def shoHisto(hist, base, waveRatio):
@@ -178,18 +181,25 @@ def shoHisto(hist, base, waveRatio):
 #   702        6003     4-7  *    4998     4999    4997     4999
 # ========= =========  ========  ======  ======  =======  =======
 
-def showFRSplit(h, b, WaveFreq, DXF, DXR):
+def showFRSplit(h, b, tGs, WaveFreq, DXF, DXR, krn, kfn):
     # Get main entries from rising and falling histos and bases
     #for h, b in zip(histos, bases): print(f'{h=}\n{b=} ')
     def getMainCell(j):
         m = max(h[j])
         return m, b[j][h[j].index(m)]
     #print('========= =========  ========  ======  ======  =======  =======')
-    print('  Edges   WaveFreq   FR Split   R Bin   F Bin  R Count  F Count')
+    #print('  Edges   WaveFreq   FR Split   R Bin   F Bin  R Count  F Count')
     rc, rb = getMainCell(0)
     fc, fb = getMainCell(1)
-    mark = ' ' if rc==fc and rb==fb else '*'
-    print(f'{NEdges:7} {WaveFreq:7} {DXF:>8}-{DXR}{mark} {rb:9}{fb:8}{rc:9}{fc:9}')
+    v = len(b[0])//2; nomcy = b[0][v]+b[1][v]
+    totGR, totGF = tGs; tdelta = totGR-totGF;  kdelta = krn-kfn
+    smark = '*' if rc==fc and rb==fb else ' '
+    kerr = nomcy-2*tdelta
+    kmark = '*' if kerr<3 else '+' if kerr<31 else ' '
+    #print(f'  {NEdges} {WaveFreq}  {DXF:}-{DXR}{smark} {krn=} {kfn=} knΔ={kdelta:6} {nomcy=:6}  totΔ={tdelta:<6}{kmark}  {totGR=}  {totGF=}')
+    #print(f'  {NEdges} {WaveFreq}  {DXF:}-{DXR}{smark} {krn=} {kfn=} knΔ={kdelta:6} {nomcy=:6}  {totGR=} {totGF=}  {kerr=:<6}')
+    print(f'   {WaveFreq}  {DXF:}-{DXR}  {kerr=:>6}  {nomcy=:6} {totGR=} {totGF=} NE={NEdges} {krn=}')
+    #print(f'{NEdges:7} {WaveFreq:7} {DXF:>8}-{DXR}{mark} {rb:9}{fb:8}{rc:9}{fc:9}')
 #--------------------------------------------------------
 def run1test(WaveFreq, splitF, ioOpt):
     if ioOpt & 32:
@@ -200,9 +210,10 @@ def run1test(WaveFreq, splitF, ioOpt):
     nsPerCount = 2e9/countSMFreq # 2 SM cycles per count
     nsPerWave  = 1e9/WaveFreq
     waveSeconds = (NEdges/2.0)/WaveFreq
-    print(f'System frequency  = {freq():9} Hz, {1e9/freq():9.2f} ns')
-    print(f'Counts per second = {countSMFreq//2:9} Hz, {nsPerCount:9.2f} ns')
-    print(f'  Wave frequency  = {WaveFreq:9} Hz, {nsPerWave:9.2f} ns  from SM freq {WaveSMFreq}')
+    if ioOpt & 1:
+        print(f'System frequency  = {freq():9} Hz, {1e9/freq():9.2f} ns')
+        print(f'Counts per second = {countSMFreq//2:9} Hz, {nsPerCount:9.2f} ns')
+        print(f'  Wave frequency  = {WaveFreq:9} Hz, {nsPerWave:9.2f} ns  from SM freq {WaveSMFreq}')
     if ioOpt & 32:
         print(f'About to get {NEdges} edges in {waveSeconds:3.1f} sec. with wave type {waveType}')
     waveRatio = (countSMFreq/WaveFreq)/2   # counter counts per wave-cycle
@@ -216,35 +227,41 @@ def run1test(WaveFreq, splitF, ioOpt):
     td = t1-t0;  tlast = nsPerCount*xlast/1000
     terr = 1000*(td-tlast)/nitems
     pt_tl = 1e6*waveSeconds - tlast
-    if ioOpt & 1:
+    if ioOpt & 2:
         print(f'Processed {nitems} items with {skips} skips in {td/1e6:8.6f} sec\n')
         # Use x.1f in several items below to avoid fake accuracy w/ 6-7 FP digits.
         print(f'Clock time {td:12} us   Clock-count total diff{td-tlast:7.1f} us')
         print(f'Counted time {tlast:12.1f} us   Clock-count avg diff {terr:8.3f} ns')
         print(f'Predicted time {1e6*waveSeconds:10.1f} us      less counted time{pt_tl:7.1f} us\n')
 
-    if ioOpt & 2:
+    if ioOpt & 4:
         shoHisto(histos, bases, waveRatio)
     krb=[ka[j+1] for j in range(0,KBuf,2) if ka[j]==GRise]
     kre=[ka[j+1] for j in range(KBuf,2*KBuf,2) if ka[j]==GRise]
     kfb=[ka[j+1] for j in range(0,KBuf,2) if ka[j]==GFall]
     kfe=[ka[j+1] for j in range(KBuf,2*KBuf,2) if ka[j]==GFall]
     krn = kre[-1]-krb[0];  kfn = kfe[-1]-kfb[1] # don't like kfb[0]
-    if ioOpt & 4:
+    if ioOpt & 16:
         print(f'{krn=}   krn/NE: {krn/NEdges:4.6f}   krn/nomCy: {krn/waveRatio:4.6f}   krn%|nomCy|: {krn%int(waveRatio)}')
         print(f'{kfn=}   kfn/NE: {kfn/NEdges:4.6f}   kfn/nomCy: {kfn/waveRatio:4.6f}   kfn%|nomCy|: {kfn%int(waveRatio)}')
-        #print(f'{CycTot=} {CycUp+CycDn=} {CycUp=} {CycDn=}  {CycOut=}  {WaveSMFreq=}')
-        DXF, DXR = splitF, 11-splitF
-        showFRSplit(histos, bases, totGs, WaveFreq, DXF, DXR)
 
-    if ioOpt & 16:
+    if ioOpt & 8:
+        DXF, DXR = splitF, 11-splitF
+        showFRSplit(histos, bases, totGs, WaveFreq, DXF, DXR, krn, kfn)
+
+    if ioOpt & 32:
+        print(f'{CycTot=} {CycUp+CycDn=} {CycUp=} {CycDn=}  {CycOut=}  {WaveSMFreq=}')
         print(f'{waveSeconds=}  {NEdges=}  {WaveFreq=}  {NEdges/WaveFreq=}\n{NEdges/WaveFreq/2=}   {freq()=}   {waveRatio=}')
         print(f'{ka=}')
         print(f'{krb=} {kre=}  {kfb=}  {kfe=}')
 #==========================================================
 def main():
     freq(SysFreq); freq(SysFreq) # Set system frequency as desired
-    run1test(440, 6, 36)
+    # showFRSplit
+    #print('  Edges   WaveFreq   FR Split   R Bin   F Bin  R Count  F Count')
+    for wf in (440,500,600,700):
+        for spf in (3,4,5,6,7,8):
+            run1test(wf, spf, 8)
 #==========================================================
 if __name__ == "__main__":
     main()
