@@ -12,7 +12,7 @@ def pioProg():
     set(pins, 0) [7]
     set(pins, 0)                # p4
     set(pins, 1) [5]
-    #wrap()
+    wrap()
     set(pins, 1)                # p6
     label('hiTop')  # Store y & x, as either fallen-count or up-noise
     mov(isr, y)                 # p7
@@ -35,7 +35,7 @@ def pioProg():
 # already occurred.  Just OR's new value -1 into ExecCtrl word at
 # self.prog[_PROG_EXECCTRL].  Also doesn't check if wrap() precedes
 # wrap_target(), if that matters.  See def wrap_target(self): and def
-# wrap(self): in file micropython/ports/rp2/modules/p2.py
+# wrap(self): in file micropython/ports/rp2/modules/rp2.py
 
 def decode(v):
     def f(bb, nb):  return (v>>bb) & ((1<<nb)-1)
