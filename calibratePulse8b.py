@@ -26,7 +26,7 @@ from utime   import sleep_us, ticks_us
 #-----------------------------------------------------------
 W_out_Pin=const(13)    # Wave SM output pin
 C_in_Pin=const(12)     # Counter input pin
-NEdges=const(8000)    # Number of wave edges we'll observe
+NEdges=const(10)    # Number of wave edges we'll observe
 #WaveFreq=const(331)  # Desired wave rate from wave state machine
 SysFreq=const(120000000) # Desired RP2040 system frequency
 # We need CycTot = 3+CycOut = 2+CycUp+CycDn
@@ -259,9 +259,9 @@ def main():
     freq(SysFreq); freq(SysFreq) # Set system frequency as desired
     # showFRSplit
     #print('  Edges   WaveFreq   FR Split   R Bin   F Bin  R Count  F Count')
-    for wf in (440,500,600,700):
-        for spf in (3,4,5,6,7,8):
-            run1test(wf, spf, 8)
+    for wavef in (440,500,600,700):
+        for fsplit in (3,4,5,6,7,8):
+            run1test(wavef*4, fsplit, 8)
 #==========================================================
 if __name__ == "__main__":
     main()

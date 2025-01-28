@@ -9,6 +9,7 @@
 #   from makeCounters import makeCounter
 #   cpio = makeCounter(k)
 #   csm = StateMachine(7, cpio, freq=counterFreq, jmp_pin=pini)
+import sys
 
 def makeCounter(k):
     from rp2 import asm_pio, PIO
@@ -299,5 +300,5 @@ def makeCounter(k):
         return (counter3, counter4, counter5,
                 counter6, counter7, counter8)[k-3]
     else:
-        print('Invalid counter-split {k}');  sys.exit()
+        print(f'Invalid counter-split {k}');  sys.exit()
     #-------------------------------------------------------------
